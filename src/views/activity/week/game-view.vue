@@ -72,9 +72,9 @@
         <el-tabs v-model="activeTab">
           <el-tab-pane label="参与概览" name="overview">
             <div class="summary-line">
-              扫码参与：<b>{{ view.enteredCount || 0 }}</b>
-              <span class="summary-separator">完成探索：<b>{{ view.finishedCount || 0 }}</b></span>
-              <span class="summary-separator">完成率：<b>{{ view.completionRate == null ? '-' : view.completionRate + '%' }}</b></span>
+              扫码参与：<b>{{ zycckEnteredCount }}</b>
+              <span class="summary-separator">完成探索：<b>{{ zycckFinishedCount }}</b></span>
+              <span class="summary-separator">完成率：<b>{{ zycckCompletionRate }}</b></span>
             </div>
             <el-table :data="view.categoryStats || []" border stripe>
               <el-table-column prop="categoryName" label="职业大类" />
@@ -111,6 +111,11 @@ export default {
   name: 'ActivityGameView',
   data() {
     return { loading: false, view: null, activeTab: 'types' }
+  },
+  computed: {
+    zycckEnteredCount() { return Number(this.view && (this.view.enteredCount != null ? this.view.enteredCount : this.view.participating)) || 0 },
+    zycckFinishedCount() { return Number(this.view && (this.view.finishedCount != null ? this.view.finishedCount : this.view.finished)) || 0 },
+    zycckCompletionRate() { const value = this.view && this.view.completionRate != null ? this.view.completionRate : (this.zycckEnteredCount ? Math.round(this.zycckFinishedCount * 10000 / this.zycckEnteredCount) / 100 : 0); return value + '%' }
   },
   created() { this.loadView() },
   methods: {
