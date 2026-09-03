@@ -4,7 +4,7 @@
     <el-card v-if="view" class="view-card">
       <div slot="header" class="card-header">
         <span>{{ view.gameTitle }}</span>
-        <el-button v-if="view.viewType === 'mind-window' || view.viewType === 'sszctop'" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
+        <el-button v-if="['mind-window', 'sszctop', 'zycck'].includes(view.viewType)" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
       </div>
 
       <template v-if="view.viewType === 'mind-window'">
@@ -68,6 +68,35 @@
           </el-tab-pane>
         </el-tabs>
       </template>
+      <template v-else-if="view.viewType === 'zycck'">
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="参与概览" name="overview">
+            <div class="summary-line">
+              扫码参与：<b>{{ view.enteredCount || 0 }}</b>
+              <span class="summary-separator">完成探索：<b>{{ view.finishedCount || 0 }}</b></span>
+              <span class="summary-separator">完成率：<b>{{ view.completionRate == null ? '-' : view.completionRate + '%' }}</b></span>
+            </div>
+            <el-table :data="view.categoryStats || []" border stripe>
+              <el-table-column prop="categoryName" label="职业大类" />
+              <el-table-column prop="questionCount" label="竞猜题数" width="120" align="center" />
+              <el-table-column prop="viewCount" label="浏览次数" width="120" align="center" />
+              <el-table-column prop="explorationCount" label="加入清单数" width="130" align="center" />
+            </el-table>
+            <el-empty v-if="!(view.categoryStats || []).length" description="暂无职业探索统计" />
+          </el-tab-pane>
+          <el-tab-pane label="用户记录" name="records">
+            <el-table :data="view.records || []" border stripe>
+              <el-table-column prop="studentName" label="学生" width="120" />
+              <el-table-column prop="schoolName" label="学校" min-width="140" />
+              <el-table-column prop="departmentName" label="院系" min-width="140" />
+              <el-table-column prop="major" label="专业" min-width="120" />
+              <el-table-column prop="gender" label="性别" width="70" />
+              <el-table-column prop="status" label="状态" width="90" />
+            </el-table>
+            <el-empty v-if="!(view.records || []).length" description="暂无用户记录" />
+          </el-tab-pane>
+        </el-tabs>
+      </template>
       <el-empty v-else :description="view.message || '该游戏暂未配置查看模板'" />
     </el-card>
   </div>
@@ -76,6 +105,7 @@
 <script>
 import { getGameView } from '@/api/activity/week'
 import { downloadGet } from '@/utils/request'
+import { zycckErrorMessage } from '@/api/zycck'
 
 export default {
   name: 'ActivityGameView',
@@ -88,11 +118,11 @@ export default {
       this.loading = true
       getGameView(this.$route.params.gameId).then(res => {
         this.view = res.data
-        this.activeTab = res.data && res.data.viewType === 'sszctop' ? 'dimensions' : 'types'
-      }).finally(() => { this.loading = false })
+        this.activeTab = res.data && res.data.viewType === 'sszctop' ? 'dimensions' : (res.data && res.data.viewType === 'zycck' ? 'overview' : 'types')
+      }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.loading = false })
     },
     exportPdf() {
-      downloadGet('/activity/week/game/' + this.$route.params.gameId + '/view/export', {}, '游戏查看报告-' + (this.view && this.view.gameTitle ? this.view.gameTitle : '报告') + '.pdf')
+      downloadGet('/activity/week/game/' + this.$route.params.gameId + '/view/export', {}, '游戏查看报告-' + (this.view && this.view.gameTitle ? this.view.gameTitle : '报告') + '.pdf').catch(error => this.$modal.msgError(zycckErrorMessage(error)))
     }
   }
 }
