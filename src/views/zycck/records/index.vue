@@ -1,11 +1,12 @@
 <template>
   <div class="app-container">
     <el-form ref="queryForm" :model="query" :inline="true" size="small" label-width="68px">
-      <el-form-item label="学校" prop="schoolId"><el-input v-model="query.schoolId" clearable placeholder="学校 ID" @keyup.enter.native="search" /></el-form-item>
-      <el-form-item label="院系" prop="departmentId"><el-input v-model="query.departmentId" clearable placeholder="院系 ID" @keyup.enter.native="search" /></el-form-item>
+      <el-form-item label="学校" prop="schoolId"><el-select v-model="query.schoolId" clearable filterable placeholder="全部学校" @change="schoolChanged"><el-option v-for="item in schools" :key="item.schoolId" :label="item.title || item.name" :value="item.schoolId" /></el-select></el-form-item>
+      <el-form-item label="院系" prop="departmentId"><el-select v-model="query.departmentId" clearable filterable placeholder="全部院系"><el-option v-for="item in departments" :key="item.departmentId" :label="item.name || item.title" :value="item.departmentId" /></el-select></el-form-item>
       <el-form-item label="专业" prop="major"><el-input v-model="query.major" clearable placeholder="请输入专业" @keyup.enter.native="search" /></el-form-item>
       <el-form-item label="性别" prop="gender"><el-select v-model="query.gender" clearable placeholder="全部"><el-option label="男" value="男" /><el-option label="女" value="女" /><el-option label="其他/未填" value="其他" /></el-select></el-form-item>
-      <el-form-item label="活动实例" prop="instanceId"><el-input v-model="query.instanceId" clearable placeholder="活动实例 ID" /></el-form-item>
+      <el-form-item label="活动" prop="instanceId"><el-select v-model="query.instanceId" clearable filterable placeholder="全部活动" @change="instanceChanged"><el-option v-for="item in activities" :key="item.instanceId" :label="item.title || item.name" :value="item.instanceId" /></el-select></el-form-item>
+      <el-form-item label="游戏" prop="gameId"><el-select v-model="query.gameId" clearable filterable placeholder="全部游戏"><el-option v-for="item in games" :key="item.gameId" :label="item.title || item.gameName" :value="item.gameId" /></el-select></el-form-item>
       <el-form-item><el-button type="primary" icon="el-icon-search" @click="search">查询</el-button><el-button icon="el-icon-refresh" @click="reset">重置</el-button></el-form-item>
     </el-form>
     <el-table v-loading="loading" :data="records" border stripe>
@@ -28,13 +29,20 @@
 
 <script>
 import { listRecords, zycckErrorMessage } from '@/api/zycck'
+import { listSchool } from '@/api/school/school'
+import { listDepartment } from '@/api/school/department'
+import { listInstances, listAreas, listGames } from '@/api/activity/week'
 
 export default {
   name: 'ZycckRecords',
-  data() { return { loading: false, records: [], total: 0, query: { pageNum: 1, pageSize: 10, schoolId: null, departmentId: null, major: null, gender: null, instanceId: null, gameId: null } } },
-  created() { this.load() },
+  data() { return { loading: false, records: [], total: 0, schools: [], departments: [], activities: [], games: [], query: { pageNum: 1, pageSize: 10, schoolId: null, departmentId: null, major: null, gender: null, instanceId: null, gameId: null } } },
+  created() { this.loadOptions(); this.load() },
   methods: {
     statusText(status) { return ({ entered: '已参与', question: '竞猜中', explore: '探索中', finished: '已完成' })[status] || '进行中' },
+    loadOptions() { listSchool({ pageNum: 1, pageSize: 1000 }).then(res => { this.schools = res.rows || res.data || [] }).catch(error => this.$modal.msgError(zycckErrorMessage(error))); listInstances({}).then(res => { this.activities = res.data || res.rows || [] }).catch(error => this.$modal.msgError(zycckErrorMessage(error))) },
+    schoolChanged(schoolId) { this.query.departmentId = null; this.departments = []; if (!schoolId) return; listDepartment({ schoolId, pageNum: 1, pageSize: 1000 }).then(res => { this.departments = res.rows || res.data || [] }).catch(error => this.$modal.msgError(zycckErrorMessage(error))) },
+    instanceChanged(instanceId) { this.query.gameId = null; this.loadGames(instanceId) },
+    loadGames(instanceId) { this.games = []; if (!instanceId) return; listAreas({ instanceId }).then(res => Promise.all((res.data || res.rows || []).map(area => listGames(area.areaId).then(gameRes => gameRes.data || gameRes.rows || [])))).then(groups => { this.games = groups.reduce((all, group) => all.concat(group), []) }).catch(error => this.$modal.msgError(zycckErrorMessage(error))) },
     load() { this.loading = true; listRecords({ ...this.query, gameType: 'zycck' }).then(res => { this.records = res.rows || res.data || []; this.total = res.total || this.records.length }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.loading = false }) },
     search() { this.query.pageNum = 1; this.load() },
     reset() { this.$refs.queryForm.resetFields(); this.search() }
