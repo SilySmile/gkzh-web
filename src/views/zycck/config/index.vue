@@ -62,9 +62,6 @@ export default {
 </script>
 
 <style scoped>
-.status-tag { min-width: 46px; text-align: center; font-weight: 500; border-radius: 4px; }
-.category-table .el-tag--success, .full-table .el-tag--success { color: #2f8f4e; background-color: #edf8f0; border-color: #b7e1c1; }
-.category-table .el-tag--info, .full-table .el-tag--info { color: #7a8491; background-color: #f2f4f6; border-color: #d8dde3; }
 .page-tip { margin-bottom: 16px; }
 .init-tip { margin-bottom: 16px; }
 .category-list-head { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; font-size: 15px; font-weight: 600; }
