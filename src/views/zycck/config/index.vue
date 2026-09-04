@@ -5,7 +5,7 @@
       title="未来职业猜猜看配置"
       type="info"
       :closable="false"
-      description="先维护五大职业大类和职业，再维护竞猜题目。每个职业只绑定一道题；固定模式配置 1 个候选题，随机池模式配置 3 个候选题。"
+      description="职业资料统一维护；有 A-D 选项的职业为试题，没有选项的职业为探索内容。试题不进入探索墙，固定模式配置 1 个候选题，随机池模式配置 3 个候选题。"
     />
     <el-alert
       v-if="!categoryLoading && !categories.length"
@@ -61,8 +61,13 @@
               ></template
             ></el-table-column
           ><el-table-column
-            prop="questionCount"
+            prop="careerCount"
             label="职业数量"
+            width="100"
+            align="center"
+          /><el-table-column
+            prop="questionCount"
+            label="题目数量"
             width="100"
             align="center"
           /><el-table-column
@@ -105,8 +110,7 @@
           description="暂无职业大类，请先初始化或新增"
         />
         <el-divider v-if="categories.length" content-position="left"
-          >职业大类说明：固定模式需配置 1 道候选题，随机池模式需配置 3
-          道候选题。</el-divider
+          >职业大类说明：职业数量包含试题职业和探索职业；试题职业不进入探索墙。固定模式需配置 1 道候选题，随机池模式需配置 3 道候选题。</el-divider
         >
       </el-tab-pane>
       <el-tab-pane label="职业维护" name="careers">
@@ -170,9 +174,11 @@
             prop="careerName"
             label="职业名称"
             min-width="220"
-          /><el-table-column label="是否已绑定题目" width="150" align="center"
+          /><el-table-column label="职业类型" width="150" align="center"
             ><template slot-scope="scope"
-              ><el-tag type="success">已绑定 1 道</el-tag></template
+              ><el-tag :type="isQuestionCareer(scope.row) ? 'success' : 'info'">{{
+                isQuestionCareer(scope.row) ? "试题职业" : "探索职业"
+              }}</el-tag></template
             ></el-table-column
           ><el-table-column label="状态" width="100" align="center"
             ><template slot-scope="scope"
@@ -438,7 +444,7 @@
     <el-dialog
       :title="careerForm.careerQuestionId ? '编辑职业' : '新增职业'"
       :visible.sync="careerDialogVisible"
-      width="560px"
+      width="760px"
       append-to-body
       ><el-form
         ref="careerForm"
@@ -460,6 +466,34 @@
           ><el-input
             v-model="careerForm.careerName"
             maxlength="100"
+            show-word-limit /></el-form-item
+        ><el-form-item label="一句话介绍"
+          ><el-input
+            v-model="careerForm.oneLineIntro"
+            type="textarea"
+            :rows="2"
+            maxlength="500"
+            show-word-limit /></el-form-item
+        ><el-form-item label="主要做什么"
+          ><el-input
+            v-model="careerForm.mainWork"
+            type="textarea"
+            :rows="3"
+            maxlength="2000"
+            show-word-limit /></el-form-item
+        ><el-form-item label="一天可能做什么"
+          ><el-input
+            v-model="careerForm.dayExample"
+            type="textarea"
+            :rows="4"
+            maxlength="2000"
+            show-word-limit /></el-form-item
+        ><el-form-item label="为什么会有这样的职业"
+          ><el-input
+            v-model="careerForm.whyExists"
+            type="textarea"
+            :rows="4"
+            maxlength="2000"
             show-word-limit /></el-form-item
         ><el-form-item label="排序"
           ><el-input-number
@@ -488,7 +522,7 @@
         type="info"
         :closable="false"
         class="dialog-tip"
-        description="四个选项必须选择 4 个不同职业；正确选项对应的职业即为本题绑定职业。职业名称只能从下拉列表选择。"
+        description="有 A-D 选项的记录才是试题；四个选项必须选择 4 个不同职业，正确选项对应本题绑定职业。职业名称只能从下拉列表选择。"
       /><el-form
         ref="questionForm"
         :model="questionForm"
@@ -621,6 +655,7 @@ const emptyQuestion = () => ({
   categoryId: null,
   careerQuestionId: null,
   careerName: "",
+  hasQuestion: "1",
   questionText: "",
   questionImageUrl: "",
   optionA: "",
@@ -725,11 +760,14 @@ export default {
       },
     },
     careerOptions() {
-      return this.allQuestions;
+      return this.allQuestions.filter(
+        (item) => String(item.status == null ? "0" : item.status) === "0",
+      );
     },
     categoryCareerOptions() {
       return this.allQuestions.filter(
         (item) =>
+          this.isQuestionCareer(item) &&
           String(item.categoryId) === String(this.questionForm.categoryId),
       );
     },
@@ -756,6 +794,9 @@ export default {
     },
     isCandidate(value) {
       return value === true || value === 1 || String(value) === "1";
+    },
+    isQuestionCareer(row) {
+      return String(row && row.hasQuestion == null ? "1" : row && row.hasQuestion) === "1";
     },
     careerName(id) {
       const item = this.allQuestions.find(
@@ -812,7 +853,7 @@ export default {
     },
     loadQuestions() {
       this.questionLoading = true;
-      listCareerQuestions({ ...this.questionQuery, gameType: "zycck" })
+      listCareerQuestions({ ...this.questionQuery, hasQuestion: 1, gameType: "zycck" })
         .then((res) => {
           const rows = res.rows || res.data || [];
           this.questions = rows.map((item) => ({
@@ -888,6 +929,7 @@ export default {
             categoryId: this.careerQuery.categoryId,
             careerQuestionId: null,
             careerName: "",
+            hasQuestion: "0",
             sortOrder: this.careers.length + 1,
             status: "0",
           };
@@ -990,6 +1032,7 @@ export default {
         );
         const payload = {
           ...this.questionForm,
+          hasQuestion: "1",
           careerName: boundCareer
             ? boundCareer.careerName
             : this.questionForm.careerName,
@@ -1018,13 +1061,13 @@ export default {
       });
     },
     removeCareer(row) {
-      if (row.questionText || row.optionACareerId || row.correctOptionKey)
+      if (this.isQuestionCareer(row))
         return this.$modal.msgWarning(
           "该职业已绑定题目，删除职业会影响题目，请先删除对应题目",
         );
       this.$modal
         .confirm("确认删除职业“" + row.careerName + "”？删除后不可恢复。")
-        .then(() => deleteCareerQuestion(row.careerQuestionId))
+        .then(() => deleteCareerQuestion(row.careerQuestionId, { careerOnly: true }))
         .then(() => {
           this.$modal.msgSuccess("职业已删除");
           this.loadAllQuestions().then(() => {

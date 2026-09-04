@@ -30,8 +30,8 @@ export function saveCareerQuestion(data) {
   return request({ url: '/zycck/admin/career-questions', method: 'post', data })
 }
 
-export function deleteCareerQuestion(careerQuestionId) {
-  return request({ url: '/zycck/admin/career-questions/' + careerQuestionId, method: 'delete' })
+export function deleteCareerQuestion(careerQuestionId, params) {
+  return request({ url: '/zycck/admin/career-questions/' + careerQuestionId, method: 'delete', params })
 }
 
 export function listRecords(params) {
