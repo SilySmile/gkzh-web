@@ -467,6 +467,16 @@
             v-model="careerForm.careerName"
             maxlength="100"
             show-word-limit /></el-form-item
+        ><el-form-item label="职业类型" prop="hasQuestion"
+          ><el-select
+            v-model="careerForm.hasQuestion"
+            style="width: 100%"
+            @change="careerTypeChanged"
+            ><el-option label="探索职业（无题目）" value="0" />
+            <el-option label="试题职业（有题目）" value="1" /></el-select
+          ><div class="form-tip">
+            试题职业需要在“题目维护”中补充 A-D 选项；切换为探索职业后会清空该职业的题目选项和候选题标记。
+          </div></el-form-item
         ><el-form-item label="一句话介绍"
           ><el-input
             v-model="careerForm.oneLineIntro"
@@ -797,6 +807,19 @@ export default {
     },
     isQuestionCareer(row) {
       return String(row && row.hasQuestion == null ? "1" : row && row.hasQuestion) === "1";
+    },
+    careerTypeChanged(value) {
+      if (String(value) !== "0") return;
+      this.careerForm.optionA = null;
+      this.careerForm.optionB = null;
+      this.careerForm.optionC = null;
+      this.careerForm.optionD = null;
+      this.careerForm.optionACareerId = null;
+      this.careerForm.optionBCareerId = null;
+      this.careerForm.optionCCareerId = null;
+      this.careerForm.optionDCareerId = null;
+      this.careerForm.correctOptionKey = null;
+      this.careerForm.drawCandidate = "0";
     },
     careerName(id) {
       const item = this.allQuestions.find(
@@ -1205,6 +1228,12 @@ export default {
 }
 .dialog-tip {
   margin-bottom: 16px;
+}
+.form-tip {
+  margin-top: 6px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.5;
 }
 .question-preview h3 {
   margin: 14px 0;
