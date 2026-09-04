@@ -527,8 +527,8 @@ export default {
       this.gameForm.title = ''
       this.gameConfigs = []
       if (gameType) {
-        listGameConfigs(gameType).then(res => {
-          this.gameConfigs = res.data || []
+        listGameConfigs(gameType, '0').then(res => {
+          this.gameConfigs = res.data || []
         })
       }
     },

@@ -142,11 +142,11 @@ export function regenerateGameQrCode(gameId) {
   })
 }
 
-export function listGameConfigs(gameType) {
+export function listGameConfigs(gameType, status) {
   return request({
     url: '/activity/week/gameConfigs',
     method: 'get',
-    params: { gameType }
+    params: { gameType, status }
   })
 }
 
