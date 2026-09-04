@@ -17,7 +17,7 @@
         <el-table v-loading="categoryLoading" :data="categories" border stripe>
           <el-table-column prop="sortOrder" label="排序" width="75" align="center" />
           <el-table-column prop="name" label="职业大类" min-width="180" />
-          <el-table-column prop="description" label="说明" min-width="240" show-overflow-tooltip />
+          <el-table-column prop="description" label="说明" min-width="260" show-overflow-tooltip />
           <el-table-column label="抽题模式" width="120" align="center">
             <template slot-scope="scope">
               <el-tag :type="scope.row.drawMode === 'random' ? 'warning' : 'success'">
@@ -42,6 +42,18 @@
           </el-table-column>
         </el-table>
         <el-empty v-if="!categoryLoading && !categories.length" description="暂无职业大类，请先新增或等待后端初始化" />
+      </el-tab-pane>
+
+      <el-tab-pane label="职业列表" name="careers">
+        <div class="toolbar"><el-button size="small" icon="el-icon-refresh" @click="loadAllQuestions">刷新职业列表</el-button><span class="list-tip">职业作为独立选项库维护，题目中的 A-D 选项只从此列表选择中文名称。</span></div>
+        <el-table :data="allQuestions" border stripe fit>
+          <el-table-column type="index" label="#" width="70" align="center" />
+          <el-table-column prop="categoryName" label="职业大类" min-width="220" />
+          <el-table-column prop="careerName" label="职业名称" min-width="260" />
+          <el-table-column label="绑定题目" min-width="180"><template slot-scope="scope">1 道（当前职业题目）</template></el-table-column>
+          <el-table-column label="状态" width="100"><template slot-scope="scope">{{ String(scope.row.status) === '0' ? '启用' : '停用' }}</template></el-table-column>
+        </el-table>
+        <el-empty v-if="!allQuestions.length" description="暂无职业，请先新增职业题目" />
       </el-tab-pane>
 
       <el-tab-pane label="职业与题目" name="questions">
@@ -85,20 +97,12 @@
       <el-form ref="questionForm" :model="questionForm" :rules="questionRules" label-width="110px" size="small">
         <el-form-item label="职业大类" prop="categoryId"><el-select v-model="questionForm.categoryId" filterable placeholder="请选择" style="width: 100%"><el-option v-for="item in categories" :key="item.categoryId" :label="item.name + '（' + drawModeText(item.drawMode) + '）'" :value="item.categoryId" /></el-select></el-form-item>
         <el-form-item label="职业名称" prop="careerName"><el-input v-model="questionForm.careerName" maxlength="100" /></el-form-item>
-        <el-divider content-position="left">职业详情（一个职业对应一道题）</el-divider>
-        <el-form-item label="职业场景图"><ImageUpload v-model="questionForm.careerImageUrl" :limit="1" /></el-form-item>
-        <el-form-item label="职业简介"><el-input v-model="questionForm.oneLineIntro" maxlength="300" show-word-limit /></el-form-item>
-        <el-form-item label="主要工作"><el-input v-model="questionForm.mainWork" type="textarea" :rows="3" maxlength="1000" show-word-limit /></el-form-item>
-        <el-form-item label="一天可能做什么"><el-input v-model="questionForm.dayExample" type="textarea" :rows="3" maxlength="1000" show-word-limit /></el-form-item>
-        <el-form-item label="为什么有此职业"><el-input v-model="questionForm.whyExists" type="textarea" :rows="3" maxlength="1000" show-word-limit /></el-form-item>
-        <el-divider content-position="left">竞猜题目</el-divider>
+        <el-divider content-position="left">竞猜题目（一个职业对应一道题）</el-divider>
         <el-form-item label="题目场景图"><ImageUpload v-model="questionForm.questionImageUrl" :limit="1" /></el-form-item>
         <el-row :gutter="12" v-for="option in optionRows" :key="option.key">
-          <el-col :span="11"><el-form-item :label="'选项 ' + option.label" :prop="option.text"><el-input v-model="questionForm[option.text]" :placeholder="'请输入选项 ' + option.label + ' 文案'" /></el-form-item></el-col>
-          <el-col :span="13"><el-form-item label="对应职业" :prop="option.career"><el-select v-model="questionForm[option.career]" filterable clearable placeholder="请选择职业（中文）" style="width: 100%"><el-option v-for="career in careerOptions" :key="career.careerQuestionId" :label="career.careerName" :value="career.careerQuestionId" /></el-select></el-form-item></el-col>
+          <el-col :span="24"><el-form-item :label="'选项 ' + option.label" :prop="option.career"><el-select v-model="questionForm[option.career]" filterable clearable placeholder="请选择职业（仅显示中文名称）" style="width: 100%"><el-option v-for="career in careerOptions" :key="career.careerQuestionId" :label="career.careerName" :value="career.careerQuestionId" /></el-select></el-form-item></el-col>
         </el-row>
         <el-form-item label="正确选项" prop="correctOptionKey"><el-radio-group v-model="questionForm.correctOptionKey"><el-radio label="A">A</el-radio><el-radio label="B">B</el-radio><el-radio label="C">C</el-radio><el-radio label="D">D</el-radio></el-radio-group></el-form-item>
-        <el-form-item label="答案解析"><el-input v-model="questionForm.explanation" type="textarea" :rows="3" maxlength="1000" show-word-limit /></el-form-item>
         <el-form-item label="抽题候选"><el-switch v-model="questionForm.drawCandidate" active-text="加入当前大类候选池" /></el-form-item>
         <el-form-item label="排序"><el-input-number v-model="questionForm.sortOrder" :min="1" :max="999" /></el-form-item>
       </el-form>
@@ -108,11 +112,10 @@
     <el-dialog title="题目预览" :visible.sync="previewVisible" width="620px" append-to-body>
       <div v-if="previewQuestion" class="question-preview">
         <el-tag type="info">{{ previewQuestion.categoryName || '职业大类' }}</el-tag><h3>{{ previewQuestion.careerName }}</h3>
-        <p>{{ previewQuestion.oneLineIntro || '暂无职业简介' }}</p>
+        <p>请观察场景图，选择最符合的职业。</p>
         <el-image v-if="previewQuestion.questionImageUrl" :src="previewQuestion.questionImageUrl" fit="contain" class="preview-image" :preview-src-list="[previewQuestion.questionImageUrl]" />
         <p><b>猜猜以上内容是下面哪个职业的工作场景？</b></p>
         <div v-for="item in previewOptions" :key="item.key" class="preview-option">{{ item.key }}. {{ item.text || '未填写' }}<el-tag v-if="item.key === previewQuestion.correctOptionKey" size="mini" type="success">正确答案</el-tag></div>
-        <el-divider /><p><b>主要工作：</b>{{ previewQuestion.mainWork || '暂无' }}</p><p><b>一天可能做什么：</b>{{ previewQuestion.dayExample || '暂无' }}</p><p><b>为什么有此职业：</b>{{ previewQuestion.whyExists || '暂无' }}</p><p><b>答案解析：</b>{{ previewQuestion.explanation || '暂无' }}</p>
       </div>
     </el-dialog>
   </div>
@@ -149,7 +152,7 @@ export default {
     drawModeText(mode) { return mode === 'random' ? '随机池，需3题' : '固定，需1题' },
     isCandidate(value) { return value === true || value === 1 || String(value) === '1' },
     loadCategories() { this.categoryLoading = true; listCategories({ pageNum: 1, pageSize: 50, gameType: 'zycck' }).then(res => { this.categories = res.rows || res.data || []; this.loadAllQuestions() }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.categoryLoading = false }) },
-    loadAllQuestions() { listCareerQuestions({ pageNum: 1, pageSize: 1000, gameType: 'zycck' }).then(res => { this.allQuestions = res.rows || res.data || [] }).catch(error => this.$modal.msgError(zycckErrorMessage(error))) },
+    loadAllQuestions() { listCareerQuestions({ pageNum: 1, pageSize: 1000, gameType: 'zycck' }).then(res => { const rows = res.rows || res.data || []; this.allQuestions = rows.map(item => ({ ...item, categoryName: item.categoryName || ((this.categories.find(category => String(category.categoryId) === String(item.categoryId)) || {}).name || '-') })) }).catch(error => this.$modal.msgError(zycckErrorMessage(error))) },
     loadQuestions() { this.questionLoading = true; listCareerQuestions({ ...this.questionQuery, gameType: 'zycck' }).then(res => { const rows = res.rows || res.data || []; this.questions = rows.map(item => ({ ...item, categoryName: item.categoryName || ((this.categories.find(category => String(category.categoryId) === String(item.categoryId)) || {}).name || '-') })); this.questionTotal = res.total || this.questions.length }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.questionLoading = false }) },
     categoryQuestionCount(category) { return category.questionCount != null ? category.questionCount : this.allQuestions.filter(item => String(item.categoryId) === String(category.categoryId)).length },
     categoryCandidateCount(category) { return category.candidateCount != null ? category.candidateCount : this.allQuestions.filter(item => String(item.categoryId) === String(category.categoryId) && this.isCandidate(item.drawCandidate)).length },
