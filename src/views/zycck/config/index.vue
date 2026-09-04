@@ -40,7 +40,7 @@ export default {
   computed: { categoryEnabled: { get() { return String(this.categoryForm.status || '0') === '0' }, set(value) { this.categoryForm.status = value ? '0' : '1' } }, careerEnabled: { get() { return String(this.careerForm.status || '0') === '0' }, set(value) { this.careerForm.status = value ? '0' : '1' } }, questionEnabled: { get() { return String(this.questionForm.status || '0') === '0' }, set(value) { this.questionForm.status = value ? '0' : '1' } }, careerOptions() { return this.allQuestions }, categoryCareerOptions() { return this.allQuestions.filter(item => String(item.categoryId) === String(this.questionForm.categoryId)) }, previewOptions() { return this.optionRows.map(item => ({ key: item.key, text: this.previewQuestion && this.previewQuestion[item.text], careerId: this.previewQuestion && this.previewQuestion[item.career] })) } },
   created() { this.loadCategories() },
   methods: {
-    categoryName(id) { const item = this.categories.find(category => String(category.categoryId) === String(id)); return item ? item.name : '' }, drawModeText(mode) { return mode === 'random' ? '随机池，需3题' : '固定，需1题' }, isCandidate(value) { return value === true || value === 1 || String(value) === '1' }, careerName(id) { const item = this.allQuestions.find(career => String(career.careerQuestionId) === String(id)); return item ? item.careerName : '' },
+    categoryName(id) { const item = this.categories.find(category => String(category.categoryId) === String(id)); return item ? item.name : '' }, statusTag(status) { return String(status) === '0' ? { type: 'success', text: '启用' } : { type: 'info', text: '停用' } }, drawModeText(mode) { return mode === 'random' ? '随机池，需3题' : '固定，需1题' }, isCandidate(value) { return value === true || value === 1 || String(value) === '1' }, careerName(id) { const item = this.allQuestions.find(career => String(career.careerQuestionId) === String(id)); return item ? item.careerName : '' },
     loadCategories() { this.categoryLoading = true; listCategories({ pageNum: 1, pageSize: 50, gameType: 'zycck' }).then(res => { this.categories = res.rows || res.data || []; this.loadAllQuestions(); this.loadCareers(); this.loadQuestions() }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.categoryLoading = false }) },
     loadAllQuestions() { return listCareerQuestions({ pageNum: 1, pageSize: 1000, gameType: 'zycck' }).then(res => { this.allQuestions = res.rows || res.data || [] }).catch(error => this.$modal.msgError(zycckErrorMessage(error))) },
     loadCareers() { this.careerLoading = true; listCareerQuestions({ pageNum: 1, pageSize: 1000, categoryId: this.careerQuery.categoryId, keyword: this.careerQuery.keyword, gameType: 'zycck' }).then(res => { const rows = res.rows || res.data || []; this.careers = rows.map(item => ({ ...item, categoryName: item.categoryName || this.categoryName(item.categoryId) })) }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.careerLoading = false }) },
@@ -62,6 +62,9 @@ export default {
 </script>
 
 <style scoped>
+.status-tag { min-width: 46px; text-align: center; font-weight: 500; border-radius: 4px; }
+.category-table .el-tag--success, .full-table .el-tag--success { color: #2f8f4e; background-color: #edf8f0; border-color: #b7e1c1; }
+.category-table .el-tag--info, .full-table .el-tag--info { color: #7a8491; background-color: #f2f4f6; border-color: #d8dde3; }
 .page-tip { margin-bottom: 16px; }
 .init-tip { margin-bottom: 16px; }
 .category-list-head { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; font-size: 15px; font-weight: 600; }
