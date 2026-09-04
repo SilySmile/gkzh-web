@@ -26,7 +26,10 @@
             </template>
           </el-table-column>
           <el-table-column label="题目数" width="90" align="center">
-            <template slot-scope="scope">{{ scope.row.questionCount == null ? '-' : scope.row.questionCount }}</template>
+            <template slot-scope="scope">{{ categoryQuestionCount(scope.row) }}</template>
+          </el-table-column>
+          <el-table-column label="候选数" width="90" align="center">
+            <template slot-scope="scope">{{ categoryCandidateCount(scope.row) }} / {{ scope.row.drawMode === 'random' ? 3 : 1 }}</template>
           </el-table-column>
           <el-table-column label="状态" width="90" align="center">
             <template slot-scope="scope"><el-tag :type="String(scope.row.status) === '0' ? 'success' : 'info'">{{ String(scope.row.status) === '0' ? '启用' : '停用' }}</el-tag></template>
@@ -59,7 +62,7 @@
           </el-table-column>
           <el-table-column label="图片" width="80" align="center"><template slot-scope="scope"><i :class="scope.row.questionImageUrl ? 'el-icon-picture' : 'el-icon-picture-outline'" /></template></el-table-column>
           <el-table-column label="状态" width="80" align="center"><template slot-scope="scope">{{ String(scope.row.status) === '0' ? '启用' : '停用' }}</template></el-table-column>
-          <el-table-column label="操作" width="130" align="center"><template slot-scope="scope"><el-button type="text" size="mini" @click="openQuestionDialog(scope.row)">编辑</el-button><el-button type="text" size="mini" @click="removeQuestion(scope.row)">删除</el-button></template></el-table-column>
+          <el-table-column label="操作" width="180" align="center"><template slot-scope="scope"><el-button type="text" size="mini" @click="preview(scope.row)">预览</el-button><el-button type="text" size="mini" @click="openQuestionDialog(scope.row)">编辑</el-button><el-button type="text" size="mini" @click="removeQuestion(scope.row)">删除</el-button></template></el-table-column>
         </el-table>
         <pagination v-show="questionTotal > 0" :total="questionTotal" :page.sync="questionQuery.pageNum" :limit.sync="questionQuery.pageSize" @pagination="loadQuestions" />
         <el-empty v-if="!questionLoading && !questions.length" description="暂无职业题目" />
@@ -78,20 +81,39 @@
       <div slot="footer"><el-button @click="categoryDialogVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="submitCategory">保存</el-button></div>
     </el-dialog>
 
-    <el-dialog :title="questionForm.careerQuestionId ? '编辑职业题目' : '新增职业题目'" :visible.sync="questionDialogVisible" width="760px" append-to-body>
+    <el-dialog :title="questionForm.careerQuestionId ? '编辑职业题目' : '新增职业题目'" :visible.sync="questionDialogVisible" width="860px" append-to-body>
       <el-form ref="questionForm" :model="questionForm" :rules="questionRules" label-width="110px" size="small">
         <el-form-item label="职业大类" prop="categoryId"><el-select v-model="questionForm.categoryId" filterable placeholder="请选择" style="width: 100%"><el-option v-for="item in categories" :key="item.categoryId" :label="item.name + '（' + drawModeText(item.drawMode) + '）'" :value="item.categoryId" /></el-select></el-form-item>
         <el-form-item label="职业名称" prop="careerName"><el-input v-model="questionForm.careerName" maxlength="100" /></el-form-item>
-        <el-form-item label="场景图片"><ImageUpload v-model="questionForm.questionImageUrl" :limit="1" /></el-form-item>
-        <el-form-item label="职业简介"><el-input v-model="questionForm.oneLineIntro" maxlength="300" /></el-form-item>
-        <el-form-item label="主要工作"><el-input v-model="questionForm.mainWork" type="textarea" maxlength="1000" /></el-form-item>
-        <el-form-item label="题目图片"><ImageUpload v-model="questionForm.careerImageUrl" :limit="1" /></el-form-item>
-        <el-row :gutter="12"><el-col :span="12"><el-form-item label="选项 A" prop="optionA"><el-input v-model="questionForm.optionA" /></el-form-item></el-col><el-col :span="12"><el-form-item label="对应职业 ID"><el-input v-model="questionForm.optionACareerId" /></el-form-item></el-col><el-col :span="12"><el-form-item label="选项 B" prop="optionB"><el-input v-model="questionForm.optionB" /></el-form-item></el-col><el-col :span="12"><el-form-item label="对应职业 ID"><el-input v-model="questionForm.optionBCareerId" /></el-form-item></el-col><el-col :span="12"><el-form-item label="选项 C" prop="optionC"><el-input v-model="questionForm.optionC" /></el-form-item></el-col><el-col :span="12"><el-form-item label="对应职业 ID"><el-input v-model="questionForm.optionCCareerId" /></el-form-item></el-col><el-col :span="12"><el-form-item label="选项 D" prop="optionD"><el-input v-model="questionForm.optionD" /></el-form-item></el-col><el-col :span="12"><el-form-item label="对应职业 ID"><el-input v-model="questionForm.optionDCareerId" /></el-form-item></el-col></el-row>
+        <el-divider content-position="left">职业详情（一个职业对应一道题）</el-divider>
+        <el-form-item label="职业场景图"><ImageUpload v-model="questionForm.careerImageUrl" :limit="1" /></el-form-item>
+        <el-form-item label="职业简介"><el-input v-model="questionForm.oneLineIntro" maxlength="300" show-word-limit /></el-form-item>
+        <el-form-item label="主要工作"><el-input v-model="questionForm.mainWork" type="textarea" :rows="3" maxlength="1000" show-word-limit /></el-form-item>
+        <el-form-item label="一天可能做什么"><el-input v-model="questionForm.dayExample" type="textarea" :rows="3" maxlength="1000" show-word-limit /></el-form-item>
+        <el-form-item label="为什么有此职业"><el-input v-model="questionForm.whyExists" type="textarea" :rows="3" maxlength="1000" show-word-limit /></el-form-item>
+        <el-divider content-position="left">竞猜题目</el-divider>
+        <el-form-item label="题目场景图"><ImageUpload v-model="questionForm.questionImageUrl" :limit="1" /></el-form-item>
+        <el-row :gutter="12" v-for="option in optionRows" :key="option.key">
+          <el-col :span="11"><el-form-item :label="'选项 ' + option.label" :prop="option.text"><el-input v-model="questionForm[option.text]" :placeholder="'请输入选项 ' + option.label + ' 文案'" /></el-form-item></el-col>
+          <el-col :span="13"><el-form-item label="对应职业" :prop="option.career"><el-select v-model="questionForm[option.career]" filterable clearable placeholder="请选择职业（中文）" style="width: 100%"><el-option v-for="career in careerOptions" :key="career.careerQuestionId" :label="career.careerName" :value="career.careerQuestionId" /></el-select></el-form-item></el-col>
+        </el-row>
         <el-form-item label="正确选项" prop="correctOptionKey"><el-radio-group v-model="questionForm.correctOptionKey"><el-radio label="A">A</el-radio><el-radio label="B">B</el-radio><el-radio label="C">C</el-radio><el-radio label="D">D</el-radio></el-radio-group></el-form-item>
+        <el-form-item label="答案解析"><el-input v-model="questionForm.explanation" type="textarea" :rows="3" maxlength="1000" show-word-limit /></el-form-item>
         <el-form-item label="抽题候选"><el-switch v-model="questionForm.drawCandidate" active-text="加入当前大类候选池" /></el-form-item>
         <el-form-item label="排序"><el-input-number v-model="questionForm.sortOrder" :min="1" :max="999" /></el-form-item>
       </el-form>
       <div slot="footer"><el-button @click="questionDialogVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="submitQuestion">保存</el-button></div>
+    </el-dialog>
+
+    <el-dialog title="题目预览" :visible.sync="previewVisible" width="620px" append-to-body>
+      <div v-if="previewQuestion" class="question-preview">
+        <el-tag type="info">{{ previewQuestion.categoryName || '职业大类' }}</el-tag><h3>{{ previewQuestion.careerName }}</h3>
+        <p>{{ previewQuestion.oneLineIntro || '暂无职业简介' }}</p>
+        <el-image v-if="previewQuestion.questionImageUrl" :src="previewQuestion.questionImageUrl" fit="contain" class="preview-image" :preview-src-list="[previewQuestion.questionImageUrl]" />
+        <p><b>猜猜以上内容是下面哪个职业的工作场景？</b></p>
+        <div v-for="item in previewOptions" :key="item.key" class="preview-option">{{ item.key }}. {{ item.text || '未填写' }}<el-tag v-if="item.key === previewQuestion.correctOptionKey" size="mini" type="success">正确答案</el-tag></div>
+        <el-divider /><p><b>主要工作：</b>{{ previewQuestion.mainWork || '暂无' }}</p><p><b>一天可能做什么：</b>{{ previewQuestion.dayExample || '暂无' }}</p><p><b>为什么有此职业：</b>{{ previewQuestion.whyExists || '暂无' }}</p><p><b>答案解析：</b>{{ previewQuestion.explanation || '暂无' }}</p>
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -99,37 +121,44 @@
 <script>
 import { listCategories, saveCategory, listCareerQuestions, saveCareerQuestion, deleteCareerQuestion, zycckErrorMessage } from '@/api/zycck'
 
-const emptyQuestion = () => ({ categoryId: null, careerName: '', oneLineIntro: '', mainWork: '', questionImageUrl: '', careerImageUrl: '', optionA: '', optionB: '', optionC: '', optionD: '', optionACareerId: '', optionBCareerId: '', optionCCareerId: '', optionDCareerId: '', correctOptionKey: 'A', drawCandidate: false, sortOrder: 1, status: '0' })
+const emptyQuestion = () => ({ categoryId: null, careerName: '', oneLineIntro: '', mainWork: '', dayExample: '', whyExists: '', explanation: '', questionImageUrl: '', careerImageUrl: '', optionA: '', optionB: '', optionC: '', optionD: '', optionACareerId: '', optionBCareerId: '', optionCCareerId: '', optionDCareerId: '', correctOptionKey: 'A', drawCandidate: false, sortOrder: 1, status: '0' })
 
 export default {
   name: 'ZycckConfig',
   data() {
     return {
       activeTab: 'categories', categoryLoading: false, questionLoading: false, saving: false,
-      categories: [], questions: [], questionTotal: 0,
-      categoryDialogVisible: false, questionDialogVisible: false,
+      categories: [], questions: [], allQuestions: [], questionTotal: 0,
+      categoryDialogVisible: false, questionDialogVisible: false, previewVisible: false, previewQuestion: null,
       categoryForm: {}, questionForm: emptyQuestion(),
       questionQuery: { pageNum: 1, pageSize: 10, categoryId: null, keyword: null },
+      optionRows: [{ key: 'A', label: 'A', text: 'optionA', career: 'optionACareerId' }, { key: 'B', label: 'B', text: 'optionB', career: 'optionBCareerId' }, { key: 'C', label: 'C', text: 'optionC', career: 'optionCCareerId' }, { key: 'D', label: 'D', text: 'optionD', career: 'optionDCareerId' }],
       categoryRules: { code: [{ required: true, message: '请输入大类编码', trigger: 'blur' }], name: [{ required: true, message: '请输入大类名称', trigger: 'blur' }], drawMode: [{ required: true, message: '请选择抽题模式', trigger: 'change' }] },
-      questionRules: { categoryId: [{ required: true, message: '请选择职业大类', trigger: 'change' }], careerName: [{ required: true, message: '请输入职业名称', trigger: 'blur' }], optionA: [{ required: true, message: '请输入选项 A', trigger: 'blur' }], optionB: [{ required: true, message: '请输入选项 B', trigger: 'blur' }], optionC: [{ required: true, message: '请输入选项 C', trigger: 'blur' }], optionD: [{ required: true, message: '请输入选项 D', trigger: 'blur' }], optionACareerId: [{ required: true, message: '请输入选项 A 对应职业 ID', trigger: 'blur' }], optionBCareerId: [{ required: true, message: '请输入选项 B 对应职业 ID', trigger: 'blur' }], optionCCareerId: [{ required: true, message: '请输入选项 C 对应职业 ID', trigger: 'blur' }], optionDCareerId: [{ required: true, message: '请输入选项 D 对应职业 ID', trigger: 'blur' }], correctOptionKey: [{ required: true, message: '请选择正确选项', trigger: 'change' }] }
+      questionRules: { categoryId: [{ required: true, message: '请选择职业大类', trigger: 'change' }], careerName: [{ required: true, message: '请输入职业名称', trigger: 'blur' }], optionA: [{ required: true, message: '请输入选项 A', trigger: 'blur' }], optionB: [{ required: true, message: '请输入选项 B', trigger: 'blur' }], optionC: [{ required: true, message: '请输入选项 C', trigger: 'blur' }], optionD: [{ required: true, message: '请输入选项 D', trigger: 'blur' }], optionACareerId: [{ required: true, message: '请选择选项 A 对应职业', trigger: 'change' }], optionBCareerId: [{ required: true, message: '请选择选项 B 对应职业', trigger: 'change' }], optionCCareerId: [{ required: true, message: '请选择选项 C 对应职业', trigger: 'change' }], optionDCareerId: [{ required: true, message: '请选择选项 D 对应职业', trigger: 'change' }], correctOptionKey: [{ required: true, message: '请选择正确选项', trigger: 'change' }] }
     }
   },
   computed: {
     categoryEnabled: { get() { return String(this.categoryForm.status || '0') === '0' }, set(value) { this.categoryForm.status = value ? '0' : '1' } },
-    selectedCategory() { return this.categories.find(item => String(item.categoryId) === String(this.questionForm.categoryId)) }
+    selectedCategory() { return this.categories.find(item => String(item.categoryId) === String(this.questionForm.categoryId)) },
+    careerOptions() { return this.allQuestions.length ? this.allQuestions : this.questions },
+    previewOptions() { return this.optionRows.map(item => ({ key: item.key, text: this.previewQuestion && this.previewQuestion[item.text], careerId: this.previewQuestion && this.previewQuestion[item.career] })) }
   },
   created() { this.loadCategories() },
   methods: {
     handleTabClick(tab) { if (tab.name === 'questions' && !this.questions.length) this.loadQuestions() },
     drawModeText(mode) { return mode === 'random' ? '随机池，需3题' : '固定，需1题' },
     isCandidate(value) { return value === true || value === 1 || String(value) === '1' },
-    loadCategories() { this.categoryLoading = true; listCategories({ pageNum: 1, pageSize: 50, gameType: 'zycck' }).then(res => { this.categories = res.rows || res.data || [] }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.categoryLoading = false }) },
+    loadCategories() { this.categoryLoading = true; listCategories({ pageNum: 1, pageSize: 50, gameType: 'zycck' }).then(res => { this.categories = res.rows || res.data || []; this.loadAllQuestions() }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.categoryLoading = false }) },
+    loadAllQuestions() { listCareerQuestions({ pageNum: 1, pageSize: 1000, gameType: 'zycck' }).then(res => { this.allQuestions = res.rows || res.data || [] }).catch(error => this.$modal.msgError(zycckErrorMessage(error))) },
     loadQuestions() { this.questionLoading = true; listCareerQuestions({ ...this.questionQuery, gameType: 'zycck' }).then(res => { const rows = res.rows || res.data || []; this.questions = rows.map(item => ({ ...item, categoryName: item.categoryName || ((this.categories.find(category => String(category.categoryId) === String(item.categoryId)) || {}).name || '-') })); this.questionTotal = res.total || this.questions.length }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.questionLoading = false }) },
+    categoryQuestionCount(category) { return category.questionCount != null ? category.questionCount : this.allQuestions.filter(item => String(item.categoryId) === String(category.categoryId)).length },
+    categoryCandidateCount(category) { return category.candidateCount != null ? category.candidateCount : this.allQuestions.filter(item => String(item.categoryId) === String(category.categoryId) && this.isCandidate(item.drawCandidate)).length },
     showQuestions(category) { this.activeTab = 'questions'; this.questionQuery.categoryId = category.categoryId; this.loadQuestions() },
+    preview(row) { this.previewQuestion = row; this.previewVisible = true },
     openCategoryDialog(row) { this.categoryForm = row ? { ...row } : { categoryId: null, code: '', name: '', description: '', drawMode: 'fixed', sortOrder: this.categories.length + 1, status: '0' }; this.categoryDialogVisible = true; this.$nextTick(() => this.$refs.categoryForm && this.$refs.categoryForm.clearValidate()) },
     submitCategory() { this.$refs.categoryForm.validate(valid => { if (!valid) return; this.saving = true; saveCategory({ ...this.categoryForm, gameType: 'zycck' }).then(() => { this.$modal.msgSuccess('职业大类保存成功'); this.categoryDialogVisible = false; this.loadCategories() }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.saving = false }) }) },
     openQuestionDialog(row) { this.questionForm = row ? { ...emptyQuestion(), ...row, drawCandidate: this.isCandidate(row.drawCandidate) } : emptyQuestion(); if (!this.questionForm.categoryId && this.questionQuery.categoryId) this.questionForm.categoryId = this.questionQuery.categoryId; this.questionDialogVisible = true; this.$nextTick(() => this.$refs.questionForm && this.$refs.questionForm.clearValidate()) },
-    submitQuestion() { this.$refs.questionForm.validate(valid => { if (!valid) return; const category = this.selectedCategory; if (!category) return this.$modal.msgWarning('请先选择有效的职业大类'); const count = this.questions.filter(item => this.isCandidate(item.drawCandidate) && String(item.categoryId) === String(category.categoryId) && String(item.careerQuestionId) !== String(this.questionForm.careerQuestionId)).length + (this.questionForm.drawCandidate ? 1 : 0); const required = category.drawMode === 'random' ? 3 : 1; if (count > required) return this.$modal.msgWarning(this.drawModeText(category.drawMode) + '，候选题不能超过 ' + required + ' 道'); this.saving = true; saveCareerQuestion({ ...this.questionForm, drawCandidate: this.questionForm.drawCandidate ? '1' : '0', gameType: 'zycck' }).then(() => { this.$modal.msgSuccess('职业题目保存成功'); this.questionDialogVisible = false; this.loadQuestions(); this.loadCategories() }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.saving = false }) }) },
+    submitQuestion() { this.$refs.questionForm.validate(valid => { if (!valid) return; const category = this.selectedCategory; if (!category) return this.$modal.msgWarning('请先选择有效的职业大类'); const total = this.allQuestions.filter(item => String(item.categoryId) === String(category.categoryId) && String(item.careerQuestionId) !== String(this.questionForm.careerQuestionId)).length + 1; if (total > 10) return this.$modal.msgWarning('每个职业大类最多维护 10 个职业题目'); const optionIds = ['optionACareerId', 'optionBCareerId', 'optionCCareerId', 'optionDCareerId'].map(key => String(this.questionForm[key] || '')); if (optionIds.some(id => !id) || new Set(optionIds).size !== 4) return this.$modal.msgWarning('四个选项必须选择 4 个不同的职业'); const count = this.allQuestions.filter(item => this.isCandidate(item.drawCandidate) && String(item.categoryId) === String(category.categoryId) && String(item.careerQuestionId) !== String(this.questionForm.careerQuestionId)).length + (this.questionForm.drawCandidate ? 1 : 0); const required = category.drawMode === 'random' ? 3 : 1; if (count > required) return this.$modal.msgWarning(this.drawModeText(category.drawMode) + '，候选题不能超过 ' + required + ' 道'); this.saving = true; saveCareerQuestion({ ...this.questionForm, drawCandidate: this.questionForm.drawCandidate ? '1' : '0', gameType: 'zycck' }).then(() => { this.$modal.msgSuccess('职业题目保存成功'); this.questionDialogVisible = false; this.loadQuestions(); this.loadCategories(); this.loadAllQuestions() }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.saving = false }) }) },
     removeQuestion(row) { this.$modal.confirm('确认删除职业题目“' + row.careerName + '”吗？').then(() => deleteCareerQuestion(row.careerQuestionId)).then(() => { this.$modal.msgSuccess('删除成功'); this.loadQuestions(); this.loadCategories() }).catch(error => { if (error) this.$modal.msgError(zycckErrorMessage(error)) }) }
   }
 }
@@ -141,4 +170,9 @@ export default {
 .toolbar-filter .el-select { width: 220px; }
 .keyword { width: 240px; }
 .zycck-config >>> .el-table .cell { white-space: nowrap; }
+.form-tip { color: #909399; font-size: 12px; line-height: 1.4; }
+.question-preview h3 { margin: 14px 0 8px; }
+.preview-intro { color: #606266; }
+.preview-image { display: block; width: 100%; height: 220px; margin: 12px 0; background: #f5f7fa; }
+.preview-option { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; margin: 6px 0; border: 1px solid #ebeef5; border-radius: 4px; }
 </style>
