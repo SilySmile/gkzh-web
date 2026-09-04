@@ -1,7 +1,7 @@
 import request from '@/utils/request'
 
-// zycck Web 管理接口。当前页面已固定在职业猜猜看目录，
-// 记录/统计接口内部固定 gameType=zycck，不向用户展示游戏筛选。
+// zycck Web 管理接口。所有接口均以活动/游戏上下文作为查询边界，
+// 具体权限由后端菜单与接口统一控制。
 export function listCategories(params) {
   return request({ url: '/zycck/admin/categories', method: 'get', params })
 }
