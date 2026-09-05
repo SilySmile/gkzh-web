@@ -46,6 +46,10 @@ export function getStatistics(params) {
   return request({ url: '/zycck/admin/statistics', method: 'get', params })
 }
 
+export function getStatisticsRecord(recordId) {
+  return request({ url: '/zycck/admin/statistics/' + recordId, method: 'get' })
+}
+
 /**
  * PDF 接口固定返回 application/pdf 文件流，调用方使用 downloadGet 下载。
  */
