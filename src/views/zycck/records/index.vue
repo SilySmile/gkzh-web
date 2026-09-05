@@ -16,11 +16,11 @@
       <el-table-column prop="departmentName" label="院系/专业" min-width="160" align="center" />
       <el-table-column prop="major" label="专业" min-width="120" align="center" />
       <el-table-column prop="gender" label="性别" width="80" align="center" />
-      <el-table-column prop="instanceId" label="活动实例" width="100" align="center" />
+      <el-table-column prop="instanceName" label="活动实例" min-width="180" align="center" />
       <el-table-column label="状态" width="100" align="center"><template slot-scope="scope"><el-tag :type="scope.row.status === 'finished' ? 'success' : 'info'">{{ statusText(scope.row.status) }}</el-tag></template></el-table-column>
       <el-table-column label="画像参与" width="100" align="center"><template slot-scope="scope">{{ scope.row.participatePortrait === '1' || scope.row.participatePortrait === true ? '是' : '否' }}</template></el-table-column>
-      <el-table-column prop="scanTime" label="参与时间" width="170" align="center" />
-      <el-table-column prop="finishTime" label="完成时间" width="170" align="center" />
+      <el-table-column label="参与时间" width="170" align="center"><template slot-scope="scope">{{ formatDateTime(scope.row.scanTime) }}</template></el-table-column>
+      <el-table-column label="完成时间" width="170" align="center"><template slot-scope="scope">{{ formatDateTime(scope.row.finishTime) }}</template></el-table-column>
       <el-table-column label="操作" width="90" fixed="right" align="center"><template slot-scope="scope"><el-button type="text" size="small" class="danger-text" @click="remove(scope.row)">删除</el-button></template></el-table-column>
     </el-table>
     <pagination v-show="total > 0" :total="total" :page.sync="query.pageNum" :limit.sync="query.pageSize" @pagination="load" />
@@ -40,6 +40,7 @@ export default {
   created() { this.loadOptions(); this.load() },
   methods: {
     statusText(status) { return ({ entered: '已参与', question: '竞猜中', explore: '探索中', finished: '已完成' })[status] || '进行中' },
+    formatDateTime(value) { if (!value) return '-'; const date = new Date(value); if (Number.isNaN(date.getTime())) return value; const pad = n => String(n).padStart(2, '0'); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}` },
     loadOptions() { listSchool({ pageNum: 1, pageSize: 1000 }).then(res => { this.schools = res.rows || res.data || [] }).catch(error => this.$modal.msgError(zycckErrorMessage(error))); listInstances({}).then(res => { this.activities = res.data || res.rows || [] }).catch(error => this.$modal.msgError(zycckErrorMessage(error))) },
     schoolChanged(schoolId) { this.query.departmentId = null; this.departments = []; if (!schoolId) return; listDepartment({ schoolId, pageNum: 1, pageSize: 1000 }).then(res => { this.departments = res.rows || res.data || [] }).catch(error => this.$modal.msgError(zycckErrorMessage(error))) },
     load() { this.loading = true; listRecords({ ...this.query, gameType: 'zycck' }).then(res => { this.records = res.rows || res.data || []; this.total = res.total || this.records.length }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.loading = false }) },
