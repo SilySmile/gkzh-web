@@ -1253,6 +1253,9 @@ export default {
   border: 1px solid #ebeef5;
   border-radius: 4px;
 }
+/deep/ .el-tag {
+  text-align: center;
+}
 @media (max-width: 900px) {
   .section-toolbar {
     align-items: flex-start;
