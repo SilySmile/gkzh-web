@@ -38,6 +38,10 @@ export function listRecords(params) {
   return request({ url: '/zycck/admin/records', method: 'get', params })
 }
 
+export function deleteRecord(recordId) {
+  return request({ url: '/zycck/admin/records/' + recordId, method: 'delete' })
+}
+
 export function getStatistics(params) {
   return request({ url: '/zycck/admin/statistics', method: 'get', params })
 }

@@ -9,8 +9,19 @@
       <el-form-item><el-button type="primary" icon="el-icon-search" @click="load">查询</el-button><el-button icon="el-icon-refresh" @click="reset">重置</el-button><el-button type="success" icon="el-icon-download" :loading="exporting" @click="exportPdf">下载 PDF</el-button></el-form-item>
     </el-form>
     <el-row :gutter="16" class="summary-row"><el-col :span="6"><el-card shadow="never"><div class="metric-label">扫码参与人数</div><div class="metric-value">{{ enteredCount }}</div></el-card></el-col><el-col :span="6"><el-card shadow="never"><div class="metric-label">完成探索人数</div><div class="metric-value">{{ finishedCount }}</div></el-card></el-col><el-col :span="6"><el-card shadow="never"><div class="metric-label">进行中人数</div><div class="metric-value">{{ inProgressCount }}</div></el-card></el-col><el-col :span="6"><el-card shadow="never"><div class="metric-label">完成率</div><div class="metric-value">{{ completionRate }}</div></el-card></el-col></el-row>
-    <el-table v-loading="loading" :data="statistics.categoryStats || []" border stripe><el-table-column prop="categoryName" label="职业大类" /><el-table-column prop="questionCount" label="竞猜题数" width="120" /><el-table-column prop="viewCount" label="浏览次数" width="120" /><el-table-column prop="explorationCount" label="加入清单数" width="130" /><el-table-column prop="averageAwareness" label="平均了解程度" width="140" /></el-table>
-    <el-empty v-if="!loading && !(statistics.categoryStats || []).length" description="暂无统计数据" />
+    <el-table v-loading="loading" :data="statistics.records || []" border stripe>
+      <el-table-column type="index" label="#" width="60" align="center" />
+      <el-table-column prop="studentName" label="学生姓名" min-width="120" align="center" />
+      <el-table-column prop="studentNo" label="学号" min-width="130" align="center" />
+      <el-table-column prop="schoolName" label="学校" min-width="150" align="center" />
+      <el-table-column prop="departmentName" label="院系" min-width="150" align="center" />
+      <el-table-column prop="major" label="专业" min-width="130" align="center" />
+      <el-table-column prop="gender" label="性别" width="80" align="center" />
+      <el-table-column prop="instanceId" label="活动实例" width="110" align="center" />
+      <el-table-column label="参与状态" width="110" align="center"><template slot-scope="scope"><el-tag :type="scope.row.status === 'finished' ? 'success' : 'info'">{{ statusText(scope.row.status) }}</el-tag></template></el-table-column>
+      <el-table-column prop="scanTime" label="参与时间" min-width="170" align="center" />
+    </el-table>
+    <el-empty v-if="!loading && !(statistics.records || []).length" description="暂无参与统计数据" />
   </div>
 </template>
 
@@ -32,6 +43,7 @@ export default {
   },
   created() { this.loadOptions(); this.load() },
   methods: {
+    statusText(status) { return ({ entered: '已参与', question: '竞猜中', explore: '探索中', finished: '已完成' })[status] || '进行中' },
     loadOptions() { listSchool({ pageNum: 1, pageSize: 1000 }).then(res => { this.schools = res.rows || res.data || [] }).catch(error => this.$modal.msgError(zycckErrorMessage(error))); listInstances({}).then(res => { this.activities = res.data || res.rows || [] }).catch(error => this.$modal.msgError(zycckErrorMessage(error))) },
     schoolChanged(schoolId) { this.query.departmentId = null; this.departments = []; if (!schoolId) return; listDepartment({ schoolId, pageNum: 1, pageSize: 1000 }).then(res => { this.departments = res.rows || res.data || [] }).catch(error => this.$modal.msgError(zycckErrorMessage(error))) },
     load() { this.loading = true; getStatistics({ ...this.query, gameType: 'zycck' }).then(res => { this.statistics = res.data || res || {} }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.loading = false }) },
@@ -45,4 +57,6 @@ export default {
 .summary-row { margin-bottom: 18px; }
 .metric-label { color: #909399; font-size: 13px; }
 .metric-value { margin-top: 8px; color: #303133; font-size: 26px; font-weight: 600; }
+/deep/ .el-table th, /deep/ .el-table td { text-align: center; }
+/deep/ .el-tag { text-align: center; }
 </style>
