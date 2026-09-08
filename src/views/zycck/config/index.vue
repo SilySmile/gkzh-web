@@ -573,7 +573,10 @@
         ><el-form-item label="题目场景图"
           ><ImageUpload
             v-model="questionForm.questionImageUrl"
-            :limit="1" /></el-form-item
+            :limit="1" />
+          <div class="form-tip image-resolution-tip">
+            推荐分辨率：750 × 760 px（接近 1:1 竖版）；支持 JPG/PNG，单张不超过 2MB。用户端按卡片比例等比展示，请避免上传过宽或过长的图片。
+          </div></el-form-item
         ><el-divider content-position="left">职业选项（中文下拉）</el-divider
         ><el-row v-for="option in optionRows" :key="option.key" :gutter="12"
           ><el-col :span="24"
