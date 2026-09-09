@@ -304,35 +304,35 @@
                 }}</span>
               </div></template
             ></el-table-column
-          ><el-table-column label="A-D 职业选项" min-width="300"
+          ><el-table-column label="A-D 文本选项" min-width="300"
             ><template slot-scope="scope"
               ><div class="options-cell">
                 <span
                   >A.
                   {{
-                    careerName(scope.row.optionACareerId) ||
                     scope.row.optionA ||
+                    careerName(scope.row.optionACareerId) ||
                     "未设置"
                   }}</span
                 ><span
                   >B.
                   {{
-                    careerName(scope.row.optionBCareerId) ||
                     scope.row.optionB ||
+                    careerName(scope.row.optionBCareerId) ||
                     "未设置"
                   }}</span
                 ><span
                   >C.
                   {{
-                    careerName(scope.row.optionCCareerId) ||
                     scope.row.optionC ||
+                    careerName(scope.row.optionCCareerId) ||
                     "未设置"
                   }}</span
                 ><span
                   >D.
                   {{
-                    careerName(scope.row.optionDCareerId) ||
                     scope.row.optionD ||
+                    careerName(scope.row.optionDCareerId) ||
                     "未设置"
                   }}</span
                 >
@@ -532,7 +532,7 @@
         type="info"
         :closable="false"
         class="dialog-tip"
-        description="有 A-D 选项的记录才是试题；四个选项必须选择 4 个不同职业，正确选项对应本题绑定职业。职业名称只能从下拉列表选择。"
+        description="有 A-D 选项的记录才是试题；A-D 为题目文本，只有正确答案需要绑定职业。"
       /><el-form
         ref="questionForm"
         :model="questionForm"
@@ -551,7 +551,7 @@
               :key="item.categoryId"
               :label="item.name + '（' + drawModeText(item.drawMode) + '）'"
               :value="item.categoryId" /></el-select></el-form-item
-        ><el-form-item label="绑定职业" prop="careerQuestionId"
+        ><el-form-item label="正确答案职业" prop="careerQuestionId"
           ><el-select
             v-model="questionForm.careerQuestionId"
             filterable
@@ -577,23 +577,18 @@
           <div class="form-tip image-resolution-tip">
             推荐分辨率：750 × 760 px（接近 1:1 竖版）；支持 JPG/PNG，单张不超过 2MB。用户端按卡片比例等比展示，请避免上传过宽或过长的图片。
           </div></el-form-item
-        ><el-divider content-position="left">职业选项（中文下拉）</el-divider
+        ><el-divider content-position="left">题目选项（文本输入）</el-divider
         ><el-row v-for="option in optionRows" :key="option.key" :gutter="12"
           ><el-col :span="24"
-            ><el-form-item :label="'选项 ' + option.label" :prop="option.career"
-              ><el-select
-                v-model="questionForm[option.career]"
-                filterable
-                clearable
-                placeholder="请选择职业名称"
-                style="width: 100%"
-                ><el-option
-                  v-for="career in careerOptions"
-                  :key="career.careerQuestionId"
-                  :label="career.careerName"
-                  :value="
-                    career.careerQuestionId
-                  " /></el-select></el-form-item></el-col></el-row
+            ><el-form-item :label="'选项 ' + option.label" :prop="option.text"
+              ><el-input
+                v-model="questionForm[option.text]"
+                type="textarea"
+                :rows="2"
+                maxlength="300"
+                show-word-limit
+                :placeholder="'请输入选项' + option.label + '内容'"
+              /></el-form-item></el-col></el-row
         ><el-form-item label="正确选项" prop="correctOptionKey"
           ><el-radio-group v-model="questionForm.correctOptionKey"
             ><el-radio v-for="key in optionKeys" :key="key" :label="key">{{
@@ -743,6 +738,18 @@ export default {
         ],
         correctOptionKey: [
           { required: true, message: "请选择正确选项", trigger: "change" },
+        ],
+        optionA: [
+          { required: true, message: "请输入选项A内容", trigger: "blur" },
+        ],
+        optionB: [
+          { required: true, message: "请输入选项B内容", trigger: "blur" },
+        ],
+        optionC: [
+          { required: true, message: "请输入选项C内容", trigger: "blur" },
+        ],
+        optionD: [
+          { required: true, message: "请输入选项D内容", trigger: "blur" },
         ],
       },
     };
@@ -1025,11 +1032,11 @@ export default {
     submitQuestion() {
       this.$refs.questionForm.validate((valid) => {
         if (!valid) return;
-        const optionIds = this.optionRows.map((item) =>
-          String(this.questionForm[item.career] || ""),
+        const optionTexts = this.optionRows.map((item) =>
+          String(this.questionForm[item.text] || "").trim(),
         );
-        if (optionIds.some((id) => !id) || new Set(optionIds).size !== 4)
-          return this.$modal.msgWarning("四个选项必须选择 4 个不同职业");
+        if (optionTexts.some((text) => !text))
+          return this.$modal.msgWarning("四个选项内容不能为空");
         const category = this.categories.find(
           (item) =>
             String(item.categoryId) === String(this.questionForm.categoryId),
@@ -1062,10 +1069,15 @@ export default {
           careerName: boundCareer
             ? boundCareer.careerName
             : this.questionForm.careerName,
-          optionA: this.careerName(this.questionForm.optionACareerId),
-          optionB: this.careerName(this.questionForm.optionBCareerId),
-          optionC: this.careerName(this.questionForm.optionCCareerId),
-          optionD: this.careerName(this.questionForm.optionDCareerId),
+          optionA: optionTexts[0],
+          optionB: optionTexts[1],
+          optionC: optionTexts[2],
+          optionD: optionTexts[3],
+          // 只有正确选项绑定职业，其余选项只保存文本。
+          optionACareerId: this.questionForm.correctOptionKey === "A" ? this.questionForm.careerQuestionId : null,
+          optionBCareerId: this.questionForm.correctOptionKey === "B" ? this.questionForm.careerQuestionId : null,
+          optionCCareerId: this.questionForm.correctOptionKey === "C" ? this.questionForm.careerQuestionId : null,
+          optionDCareerId: this.questionForm.correctOptionKey === "D" ? this.questionForm.careerQuestionId : null,
           drawCandidate: this.questionForm.drawCandidate ? "1" : "0",
           gameType: "zycck",
         };
