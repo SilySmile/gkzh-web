@@ -174,6 +174,16 @@
             prop="careerName"
             label="职业名称"
             min-width="220"
+          /><el-table-column label="职业图片" width="110" align="center"
+            ><template slot-scope="scope"
+              ><el-image
+                v-if="scope.row.careerImageUrl"
+                :src="scope.row.careerImageUrl"
+                fit="cover"
+                class="career-thumb"
+                :preview-src-list="[scope.row.careerImageUrl]"
+              /><span v-else class="empty-image">未设置</span></template
+            ></el-table-column
           /><el-table-column label="职业类型" width="150" align="center"
             ><template slot-scope="scope"
               ><el-tag :type="isQuestionCareer(scope.row) ? 'success' : 'info'">{{
@@ -467,6 +477,16 @@
             v-model="careerForm.careerName"
             maxlength="100"
             show-word-limit /></el-form-item
+        ><el-form-item label="职业图片"
+          ><ImageUpload
+            v-model="careerForm.careerImageUrl"
+            :limit="1"
+            :file-size="2"
+            :file-type="['jpg', 'jpeg', 'png']"
+          />
+          <div class="form-tip image-resolution-tip">
+            建议上传 1:1 或 4:3 的 JPG/PNG 图片，单张不超过 2MB。图片将显示在学生端职业卡片、职业详情和探索报告中。
+          </div></el-form-item
         ><el-form-item label="职业类型" prop="hasQuestion"
           ><el-select
             v-model="careerForm.hasQuestion"
@@ -962,6 +982,7 @@ export default {
             categoryId: this.careerQuery.categoryId,
             careerQuestionId: null,
             careerName: "",
+            careerImageUrl: "",
             hasQuestion: "0",
             sortOrder: this.careers.length + 1,
             status: "0",
@@ -1173,6 +1194,16 @@ export default {
 }
 .danger-text {
   color: #f56c6c;
+}
+.career-thumb {
+  width: 64px;
+  height: 52px;
+  border-radius: 6px;
+  vertical-align: middle;
+}
+.empty-image {
+  color: #a8abb2;
+  font-size: 12px;
 }
 .category-cards {
   display: flex;
