@@ -50,6 +50,43 @@ export function getStatisticsRecord(recordId) {
   return request({ url: '/zycck/admin/statistics/' + recordId, method: 'get' })
 }
 
+// 汉印云打印机与任务管理。
+export function listPrinters() {
+  return request({ url: '/zycck/admin/printers', method: 'get' })
+}
+
+export function syncPrinters() {
+  return request({ url: '/zycck/admin/printers/sync', method: 'post' })
+}
+
+export function bindPrinter(data) {
+  return request({ url: '/zycck/admin/printers/bind', method: 'post', data })
+}
+
+export function renamePrinter(printerId, printerName) {
+  return request({ url: '/zycck/admin/printers/' + printerId + '/name', method: 'post', params: { printerName } })
+}
+
+export function refreshPrinterStatus(printerId) {
+  return request({ url: '/zycck/admin/printers/' + printerId + '/status', method: 'post' })
+}
+
+export function unbindPrinter(printerId) {
+  return request({ url: '/zycck/admin/printers/' + printerId, method: 'delete' })
+}
+
+export function listPrintTasks(params) {
+  return request({ url: '/zycck/admin/print-tasks', method: 'get', params })
+}
+
+export function refreshPrintTaskStatus(taskId) {
+  return request({ url: '/zycck/admin/print-tasks/' + taskId + '/status', method: 'post' })
+}
+
+export function reprintTask(taskId) {
+  return request({ url: '/zycck/admin/print-tasks/' + taskId + '/reprint', method: 'post' })
+}
+
 /**
  * PDF 接口固定返回 application/pdf 文件流，调用方使用 downloadGet 下载。
  */
