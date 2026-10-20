@@ -255,7 +255,7 @@ export default {
     remove(row) {
       this.$modal
         .confirm(
-          "确认删除该学生在当前活动中的职业猜猜看记录吗？删除后可重新扫码参与。",
+          "确认删除该学生在当前活动中的职业猜猜看记录吗？将一并删除对应游戏参与记录和活动反馈，删除后可重新扫码参与。",
         )
         .then(() => deleteRecord(row.recordId))
         .then(() => {
