@@ -10,13 +10,21 @@
         />
       </el-form-item>
 
-      <el-form-item label="所属抽奖活动" prop="activityTitle">
-        <el-input
-          v-model="queryParams.activityTitle"
-          placeholder="请输入所属抽奖活动"
+      <el-form-item label="所属抽奖活动" prop="lotteryId">
+        <el-select
+          v-model="queryParams.lotteryId"
           clearable
-          @keyup.enter.native="handleQuery"
-        />
+          filterable
+          placeholder="请选择抽奖活动"
+          style="width: 220px"
+        >
+          <el-option
+            v-for="activity in activityOptions"
+            :key="activity.lotteryId"
+            :label="activity.title"
+            :value="activity.lotteryId"
+          ></el-option>
+        </el-select>
       </el-form-item>
 
       <el-form-item label="活动类型" prop="bizType">
@@ -182,6 +190,7 @@
 
 <script>
 import { listRecord, getRecord, delRecord, addRecord, updateRecord, getRedemptionLogs, redeemRecord } from "@/api/lottery/record"
+import { listActivity } from "@/api/lottery/activity"
 
 export default {
   name: "Record",
@@ -211,6 +220,7 @@ export default {
         pageSize: 10,
         userName: null,
         nickName: null,
+        lotteryId: null,
         activityTitle: null,
         bizType: null,
         prizeTitle: null,
@@ -229,12 +239,20 @@ export default {
       redemptionLogs: []
       ,qrVisible: false
       ,qrUrl: ''
+      ,activityOptions: []
     }
   },
   created() {
+    this.loadActivityOptions()
     this.getList()
   },
   methods: {
+    /** 加载抽奖活动下拉选项，替代手工输入活动名称 */
+    loadActivityOptions() {
+      listActivity({ orderByColumn: "lotteryId", isAsc: "desc" }).then(response => {
+        this.activityOptions = response.rows || []
+      })
+    },
     /** 查询抽奖记录列表 */
     getList() {
       this.loading = true

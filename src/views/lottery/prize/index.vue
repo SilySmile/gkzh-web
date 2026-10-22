@@ -8,13 +8,21 @@
       v-show="showSearch"
       label-width="68px"
     >
-      <el-form-item label="活动名称" prop="activityTitle" label-width="100px">
-        <el-input
-          v-model="queryParams.activityTitle"
-          placeholder="请输入活动名称"
+      <el-form-item label="所属抽奖活动" prop="lotteryId" label-width="100px">
+        <el-select
+          v-model="queryParams.lotteryId"
           clearable
-          @keyup.enter.native="handleQuery"
-        />
+          filterable
+          placeholder="请选择抽奖活动"
+          style="width: 220px"
+        >
+          <el-option
+            v-for="activity in activityOptions"
+            :key="activity.lotteryId"
+            :label="activity.title"
+            :value="activity.lotteryId"
+          ></el-option>
+        </el-select>
       </el-form-item>
       <el-form-item label="奖品名称" prop="title">
         <el-input
@@ -124,6 +132,13 @@
           />
         </template>
       </el-table-column>
+      <el-table-column label="是否需核销" align="center" prop="needRedemption">
+        <template slot-scope="scope">
+          <el-tag :type="scope.row.needRedemption === '0' ? 'info' : 'success'">
+            {{ scope.row.needRedemption === '0' ? '无需核销' : '需核销' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="启用状态" align="center" prop="isEnabled">
         <template slot-scope="scope">
           <dict-tag
@@ -226,7 +241,11 @@
           />
         </el-form-item>
         <el-form-item label="奖品类型" prop="prizeType">
-          <el-select v-model="form.prizeType" placeholder="请选择奖品类型">
+          <el-select
+            v-model="form.prizeType"
+            placeholder="请选择奖品类型"
+            @change="onPrizeTypeChange"
+          >
             <el-option
               v-for="dict in dict.type.lottery_prize_type"
               :key="dict.value"
@@ -234,6 +253,13 @@
               :value="dict.value"
             ></el-option>
           </el-select>
+        </el-form-item>
+        <el-form-item label="是否需核销" prop="needRedemption">
+          <el-radio-group v-model="form.needRedemption">
+            <el-radio label="1">需核销</el-radio>
+            <el-radio label="0">无需核销</el-radio>
+          </el-radio-group>
+          <div class="form-tip">默认需核销；虚拟奖品或直接发放的奖品可选择无需核销。</div>
         </el-form-item>
         <el-form-item label="启用状态">
           <el-radio-group v-model="form.isEnabled">
@@ -331,6 +357,13 @@ export default {
         prizeType: [
           { required: true, message: "奖品类型不能为空", trigger: "change" },
         ],
+        needRedemption: [
+          {
+            required: true,
+            message: "请选择是否需要核销",
+            trigger: "change",
+          },
+        ],
         isEnabled: [
           { required: true, message: "启用状态不能为空", trigger: "change" },
         ],
@@ -349,9 +382,24 @@ export default {
     };
   },
   created() {
+    this.loadActivityOptions();
     this.getList();
   },
   methods: {
+    /** 加载抽奖活动下拉选项，供筛选和新增/修改共用 */
+    loadActivityOptions() {
+      listActivity({ orderByColumn: "lotteryId", isAsc: "desc" }).then(
+        (response) => {
+          this.activityOptions = response.rows || [];
+        },
+      );
+    },
+    /** 谢谢参与默认无需核销，仍允许手动改为需核销 */
+    onPrizeTypeChange(value) {
+      if (String(value) === "3") {
+        this.form.needRedemption = "0";
+      }
+    },
     /** 查询抽奖奖品列表 */
     getList() {
       this.loading = true;
@@ -383,6 +431,7 @@ export default {
         stock: null,
         weight: null,
         prizeType: null,
+        needRedemption: "1",
         isEnabled: "0",
         sortOrder: null,
       };
@@ -526,3 +575,12 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.form-tip {
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+</style>
