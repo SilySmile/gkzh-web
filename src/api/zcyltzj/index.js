@@ -22,7 +22,7 @@ export function deleteQuestion(questionId) {
   return request({ url: '/zcyltzj/admin/questions/' + questionId, method: 'delete' })
 }
 
-// 九宫格下中、下右两格的规则配置。
+// 九宫格下左、下右两格的规则配置。
 export function listRuleCells() {
   return request({ url: '/zcyltzj/admin/rule-cells', method: 'get' })
 }

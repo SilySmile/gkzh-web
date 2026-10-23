@@ -153,7 +153,7 @@
 
       <el-tab-pane label="规则格设置" name="rules">
         <el-alert
-          title="九宫格中间为空，下中和下右两格用于展示规则；学生点击这两格可查看规则内容，骰子点数不会落在规则格上。"
+          title="九宫格中间为空，下左和下右两格用于展示规则；学生点击这两格可查看规则内容，骰子点数不会落在规则格上。"
           type="info"
           :closable="false"
           class="tip"
@@ -186,7 +186,7 @@
         </el-table>
         <el-empty
           v-if="!ruleLoading && !ruleCells.length"
-          description="规则格尚未初始化，请先执行数据库迁移 v45"
+          description="规则格尚未初始化，请先执行数据库迁移 v45、v46"
         />
       </el-tab-pane>
     </el-tabs>
@@ -426,7 +426,7 @@ export default {
         });
     },
     cellTitle(cellNo) {
-      if (Number(cellNo) === 8) return "下中（第 8 格）";
+      if (Number(cellNo) === 7) return "下左（第 7 格）";
       if (Number(cellNo) === 9) return "下右（第 9 格）";
       return cellNo == null ? "" : "第 " + cellNo + " 格";
     },
