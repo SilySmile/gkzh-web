@@ -22,6 +22,15 @@ export function deleteQuestion(questionId) {
   return request({ url: '/zcyltzj/admin/questions/' + questionId, method: 'delete' })
 }
 
+// 九宫格下中、下右两格的规则配置。
+export function listRuleCells() {
+  return request({ url: '/zcyltzj/admin/rule-cells', method: 'get' })
+}
+
+export function saveRuleCell(data) {
+  return request({ url: '/zcyltzj/admin/rule-cells', method: 'post', data })
+}
+
 export function listRecords(params) {
   return request({ url: '/zcyltzj/admin/records', method: 'get', params })
 }

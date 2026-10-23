@@ -150,6 +150,45 @@
           description="该点数暂无试题，请点击“新增题目”添加"
         />
       </el-tab-pane>
+
+      <el-tab-pane label="规则格设置" name="rules">
+        <el-alert
+          title="九宫格中间为空，下中和下右两格用于展示规则；学生点击这两格可查看规则内容，骰子点数不会落在规则格上。"
+          type="info"
+          :closable="false"
+          class="tip"
+        />
+        <el-table v-loading="ruleLoading" :data="ruleCells" border stripe>
+          <el-table-column label="位置" width="150" align="center">
+            <template slot-scope="scope">{{ cellTitle(scope.row.cellNo) }}</template>
+          </el-table-column>
+          <el-table-column prop="title" label="格子标题" width="180" align="center" />
+          <el-table-column
+            prop="content"
+            label="规则内容"
+            min-width="320"
+            show-overflow-tooltip
+          />
+          <el-table-column label="状态" width="90" align="center">
+            <template slot-scope="scope">
+              <el-tag :type="scope.row.status === '0' ? 'success' : 'info'">{{
+                scope.row.status === "0" ? "启用" : "停用"
+              }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="90" align="center">
+            <template slot-scope="scope">
+              <el-button type="text" size="small" @click="openRule(scope.row)"
+                >编辑</el-button
+              >
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-empty
+          v-if="!ruleLoading && !ruleCells.length"
+          description="规则格尚未初始化，请先执行数据库迁移 v45"
+        />
+      </el-tab-pane>
     </el-tabs>
 
     <el-dialog
@@ -263,6 +302,50 @@
         >
       </div>
     </el-dialog>
+
+    <el-dialog
+      title="编辑规则格"
+      :visible.sync="ruleDialogVisible"
+      width="600px"
+      append-to-body
+    >
+      <el-form ref="ruleForm" :model="ruleForm" label-width="100px">
+        <el-form-item label="九宫格位置">
+          <span>{{ cellTitle(ruleForm.cellNo) }}</span>
+          <span class="form-tip">位置固定，不可修改</span>
+        </el-form-item>
+        <el-form-item label="格子标题" required>
+          <el-input
+            v-model.trim="ruleForm.title"
+            maxlength="50"
+            show-word-limit
+            placeholder="例如：再来一次"
+          />
+        </el-form-item>
+        <el-form-item label="规则内容">
+          <el-input
+            v-model.trim="ruleForm.content"
+            type="textarea"
+            :rows="5"
+            maxlength="500"
+            show-word-limit
+            placeholder="填写展示给学生的规则说明"
+          />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-radio-group v-model="ruleForm.status">
+            <el-radio label="0">启用</el-radio>
+            <el-radio label="1">停用</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="ruleDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="submitRule"
+          >保存</el-button
+        >
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -273,6 +356,8 @@ import {
   listQuestions,
   saveQuestion,
   deleteQuestion,
+  listRuleCells,
+  saveRuleCell,
   zcyltzjErrorMessage,
 } from "@/api/zcyltzj";
 
@@ -284,17 +369,22 @@ export default {
       points: [],
       questions: [],
       questionPointNo: 1,
+      ruleCells: [],
       pointLoading: false,
       questionLoading: false,
+      ruleLoading: false,
       saving: false,
       pointDialogVisible: false,
       pointForm: {},
       questionDialogVisible: false,
       questionForm: {},
+      ruleDialogVisible: false,
+      ruleForm: {},
     };
   },
   created() {
     this.loadPoints();
+    this.loadRuleCells();
   },
   methods: {
     loadPoints() {
@@ -322,6 +412,49 @@ export default {
         .catch((error) => this.$modal.msgError(zcyltzjErrorMessage(error)))
         .finally(() => {
           this.questionLoading = false;
+        });
+    },
+    loadRuleCells() {
+      this.ruleLoading = true;
+      listRuleCells()
+        .then((res) => {
+          this.ruleCells = res.data || res.rows || [];
+        })
+        .catch((error) => this.$modal.msgError(zcyltzjErrorMessage(error)))
+        .finally(() => {
+          this.ruleLoading = false;
+        });
+    },
+    cellTitle(cellNo) {
+      if (Number(cellNo) === 8) return "下中（第 8 格）";
+      if (Number(cellNo) === 9) return "下右（第 9 格）";
+      return cellNo == null ? "" : "第 " + cellNo + " 格";
+    },
+    openRule(row) {
+      this.ruleForm = {
+        ruleId: row.ruleId,
+        cellNo: row.cellNo,
+        title: row.title,
+        content: row.content,
+        status: row.status || "0",
+      };
+      this.ruleDialogVisible = true;
+    },
+    submitRule() {
+      if (!this.ruleForm.title) {
+        this.$modal.msgWarning("请填写规则格标题");
+        return;
+      }
+      this.saving = true;
+      saveRuleCell(this.ruleForm)
+        .then(() => {
+          this.$modal.msgSuccess("规则格已保存");
+          this.ruleDialogVisible = false;
+          this.loadRuleCells();
+        })
+        .catch((error) => this.$modal.msgError(zcyltzjErrorMessage(error)))
+        .finally(() => {
+          this.saving = false;
         });
     },
     openPoint(row) {
