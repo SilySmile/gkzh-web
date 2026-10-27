@@ -4,7 +4,7 @@
     <el-card v-if="view" class="view-card">
       <div slot="header" class="card-header">
         <span>{{ view.gameTitle }}</span>
-        <el-button v-if="['mind-window', 'sszctop', 'zycck'].includes(view.viewType)" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
+        <el-button v-if="['mind-window', 'sszctop', 'zycck', 'zyjdc'].includes(view.viewType)" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
       </div>
 
       <template v-if="view.viewType === 'mind-window'">
@@ -97,6 +97,56 @@
           </el-tab-pane>
         </el-tabs>
       </template>
+      <template v-else-if="view.viewType === 'zyjdc'">
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="第一页：学生角色选择整体数据" name="overview">
+            <div class="summary-line">
+              扫码参与：<b>{{ zyjdcSummary.enteredCount || 0 }}</b>
+              <span class="summary-separator">完成角色选择：<b>{{ zyjdcSummary.selectedCount || 0 }}</b></span>
+              <span class="summary-separator">通关：<b>{{ zyjdcSummary.completedCount || 0 }}</b></span>
+              <span class="summary-separator">完成率：<b>{{ zyjdcSummary.completionRate || 0 }}%</b></span>
+              <span class="summary-separator">平均尝试：<b>{{ zyjdcSummary.averageAttempts || 0 }}</b> 次</span>
+            </div>
+            <el-table :data="view.records || []" border stripe>
+              <el-table-column prop="studentName" label="学生" width="110" />
+              <el-table-column prop="studentNo" label="学号" width="130" />
+              <el-table-column prop="schoolName" label="学校" min-width="150" />
+              <el-table-column prop="departmentName" label="院系" min-width="150" />
+              <el-table-column prop="major" label="专业" min-width="120" />
+              <el-table-column prop="roleName" label="角色" width="90" align="center" />
+              <el-table-column prop="jobTitle" label="职场定位" min-width="150" />
+              <el-table-column prop="resultName" label="结果" width="80" align="center" />
+              <el-table-column label="参与时间" width="160" align="center">
+                <template slot-scope="scope">{{ formatTime(scope.row.scanTime) }}</template>
+              </el-table-column>
+            </el-table>
+            <el-alert v-if="view.records && view.records.length" :title="'仅展示最近 ' + view.records.length + ' 条记录，完整数据请在“参与记录”或 Excel 中查看。'" type="info" :closable="false" style="margin-top: 12px" />
+            <el-empty v-if="!(view.records || []).length" description="暂无角色选择记录" />
+          </el-tab-pane>
+          <el-tab-pane label="第二页：各角色偏好占比统计" name="roles">
+            <el-table :data="view.roleStats || []" border stripe>
+              <el-table-column prop="serialNo" label="序号" width="70" align="center" />
+              <el-table-column prop="roleName" label="动物角色" width="100" align="center" />
+              <el-table-column prop="jobTitle" label="职场定位" min-width="160" />
+              <el-table-column prop="rankLevel" label="等级" width="80" align="center" />
+              <el-table-column prop="userCount" label="选择人数" width="100" align="center" />
+              <el-table-column label="偏好占比" min-width="200">
+                <template slot-scope="scope">
+                  <el-progress :percentage="Number(scope.row.probability) || 0" :format="() => scope.row.probability + '%'" />
+                </template>
+              </el-table-column>
+              <el-table-column prop="finishedCount" label="通关人数" width="100" align="center" />
+              <el-table-column label="完成率" width="100" align="center">
+                <template slot-scope="scope">{{ scope.row.completionRate }}%</template>
+              </el-table-column>
+            </el-table>
+          </el-tab-pane>
+          <el-tab-pane label="第三页：整体偏好分析" name="analysis">
+            <el-alert title="分析说明" type="info" :closable="false" description="分析基于当前游戏全部参与学生的角色选择和胜负结果自动生成，仅作为活动复盘和生涯辅导参考。" />
+            <div class="analysis-text">{{ view.analysis || '暂无分析结果' }}</div>
+          </el-tab-pane>
+        </el-tabs>
+      </template>
       <el-empty v-else :description="view.message || '该游戏暂未配置查看模板'" />
     </el-card>
   </div>
@@ -115,7 +165,8 @@ export default {
   computed: {
     zycckEnteredCount() { return Number(this.view && (this.view.enteredCount != null ? this.view.enteredCount : this.view.participating)) || 0 },
     zycckFinishedCount() { return Number(this.view && (this.view.finishedCount != null ? this.view.finishedCount : this.view.finished)) || 0 },
-    zycckCompletionRate() { const value = this.view && this.view.completionRate != null ? this.view.completionRate : (this.zycckEnteredCount ? Math.round(this.zycckFinishedCount * 10000 / this.zycckEnteredCount) / 100 : 0); return value + '%' }
+    zycckCompletionRate() { const value = this.view && this.view.completionRate != null ? this.view.completionRate : (this.zycckEnteredCount ? Math.round(this.zycckFinishedCount * 10000 / this.zycckEnteredCount) / 100 : 0); return value + '%' },
+    zyjdcSummary() { return (this.view && this.view.summary) || {} }
   },
   created() { this.loadView() },
   methods: {
@@ -123,8 +174,16 @@ export default {
       this.loading = true
       getGameView(this.$route.params.gameId).then(res => {
         this.view = res.data
-        this.activeTab = res.data && res.data.viewType === 'sszctop' ? 'dimensions' : (res.data && res.data.viewType === 'zycck' ? 'overview' : 'types')
+        const type = res.data && res.data.viewType
+        this.activeTab = type === 'sszctop' ? 'dimensions' : (type === 'zycck' || type === 'zyjdc' ? 'overview' : 'types')
       }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.loading = false })
+    },
+    formatTime(value) {
+      if (!value) return '-'
+      const date = new Date(value)
+      if (isNaN(date.getTime())) return String(value)
+      const pad = (n) => (n < 10 ? '0' + n : '' + n)
+      return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes())
     },
     exportPdf() {
       downloadGet('/activity/week/game/' + this.$route.params.gameId + '/view/export', {}, '游戏查看报告-' + (this.view && this.view.gameTitle ? this.view.gameTitle : '报告') + '.pdf').catch(error => this.$modal.msgError(zycckErrorMessage(error)))
