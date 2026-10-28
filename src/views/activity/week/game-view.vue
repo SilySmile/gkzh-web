@@ -4,7 +4,7 @@
     <el-card v-if="view" class="view-card">
       <div slot="header" class="card-header">
         <span>{{ view.gameTitle }}</span>
-        <el-button v-if="['mind-window', 'sszctop', 'zycck', 'zyjdc'].includes(view.viewType)" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
+        <el-button v-if="['mind-window', 'sszctop', 'zycck', 'zyjdc', 'nlld'].includes(view.viewType)" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
       </div>
 
       <template v-if="view.viewType === 'mind-window'">
@@ -147,6 +147,64 @@
           </el-tab-pane>
         </el-tabs>
       </template>
+      <template v-else-if="view.viewType === 'nlld'">
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="第一页：学生价值观整体数据" name="overview">
+            <div class="summary-line">
+              扫码参与：<b>{{ nlldSummary.enteredCount || 0 }}</b>
+              <span class="summary-separator">完成测评：<b>{{ nlldSummary.completedCount || 0 }}</b></span>
+              <span class="summary-separator">完成率：<b>{{ nlldSummary.completionRate || 0 }}%</b></span>
+              <span class="summary-separator">TOP2：<b>{{ nlldSummary.top2Count || 0 }}</b> 人</span>
+              <span class="summary-separator">多元开放型：<b>{{ nlldSummary.openCount || 0 }}</b> 人</span>
+            </div>
+            <el-table :data="view.records || []" border stripe>
+              <el-table-column prop="studentName" label="学生" width="110" />
+              <el-table-column prop="studentNo" label="学号" width="130" />
+              <el-table-column prop="schoolName" label="学校" min-width="150" />
+              <el-table-column prop="departmentName" label="院系" min-width="150" />
+              <el-table-column prop="major" label="专业" min-width="120" />
+              <el-table-column prop="top1DimensionName" label="TOP1" width="120" align="center" />
+              <el-table-column prop="top2DimensionName" label="TOP2" width="120" align="center" />
+              <el-table-column prop="resultTypeName" label="结果类型" width="120" align="center" />
+              <el-table-column label="参与时间" width="160" align="center">
+                <template slot-scope="scope">{{ formatTime(scope.row.scanTime) }}</template>
+              </el-table-column>
+            </el-table>
+            <el-alert v-if="view.records && view.records.length" :title="'仅展示最近 ' + view.records.length + ' 条记录，完整数据请在“参与记录”或 Excel 中查看。'" type="info" :closable="false" style="margin-top: 12px" />
+            <el-empty v-if="!(view.records || []).length" description="暂无测评记录" />
+          </el-tab-pane>
+          <el-tab-pane label="第二页：各维度偏好占比统计" name="dimensions">
+            <div class="summary-line">
+              完成测评：<b>{{ (view.completedCount || 0) }}</b>
+              <span class="summary-separator">TOP2 类型：<b>{{ view.top2Count || 0 }}</b> 人</span>
+              <span class="summary-separator">多元开放型：<b>{{ view.openCount || 0 }}</b> 人</span>
+            </div>
+            <el-table :data="view.dimensionStats || []" border stripe>
+              <el-table-column prop="serialNo" label="序号" width="70" align="center" />
+              <el-table-column prop="dimensionName" label="维度" width="120" align="center" />
+              <el-table-column prop="dimensionGroup" label="分组" width="200" align="center" />
+              <el-table-column prop="selectedCount" label="被选次数" width="100" align="center" />
+              <el-table-column label="选择占比" min-width="170">
+                <template slot-scope="scope">
+                  <el-progress :percentage="Number(scope.row.selectedRate) || 0" :format="() => scope.row.selectedRate + '%'" />
+                </template>
+              </el-table-column>
+              <el-table-column prop="twoPointCount" label="得2分人数" width="110" align="center" />
+              <el-table-column label="偏好率" min-width="170">
+                <template slot-scope="scope">
+                  <el-progress :percentage="Number(scope.row.twoPointRate) || 0" :color="'#67c23a'" :format="() => scope.row.twoPointRate + '%'" />
+                </template>
+              </el-table-column>
+              <el-table-column prop="top2Count" label="进入TOP2" width="105" align="center" />
+              <el-table-column label="TOP2占比" width="100" align="center">
+                <template slot-scope="scope">{{ scope.row.top2Rate }}%</template>
+              </el-table-column>
+            </el-table>
+            <el-alert title="偏好分析" type="info" :closable="false" description="分析基于当前游戏全部完成测评学生的 15 维选择自动生成，仅作为活动复盘和生涯辅导参考。" style="margin-top: 16px" />
+            <div class="analysis-text">{{ view.analysis || '暂无分析结果' }}</div>
+          </el-tab-pane>
+        </el-tabs>
+      </template>
       <el-empty v-else :description="view.message || '该游戏暂未配置查看模板'" />
     </el-card>
   </div>
@@ -166,7 +224,8 @@ export default {
     zycckEnteredCount() { return Number(this.view && (this.view.enteredCount != null ? this.view.enteredCount : this.view.participating)) || 0 },
     zycckFinishedCount() { return Number(this.view && (this.view.finishedCount != null ? this.view.finishedCount : this.view.finished)) || 0 },
     zycckCompletionRate() { const value = this.view && this.view.completionRate != null ? this.view.completionRate : (this.zycckEnteredCount ? Math.round(this.zycckFinishedCount * 10000 / this.zycckEnteredCount) / 100 : 0); return value + '%' },
-    zyjdcSummary() { return (this.view && this.view.summary) || {} }
+    zyjdcSummary() { return (this.view && this.view.summary) || {} },
+    nlldSummary() { return (this.view && this.view.summary) || {} }
   },
   created() { this.loadView() },
   methods: {
@@ -175,7 +234,7 @@ export default {
       getGameView(this.$route.params.gameId).then(res => {
         this.view = res.data
         const type = res.data && res.data.viewType
-        this.activeTab = type === 'sszctop' ? 'dimensions' : (type === 'zycck' || type === 'zyjdc' ? 'overview' : 'types')
+        this.activeTab = type === 'sszctop' ? 'dimensions' : (type === 'zycck' || type === 'zyjdc' || type === 'nlld' ? 'overview' : 'types')
       }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.loading = false })
     },
     formatTime(value) {
