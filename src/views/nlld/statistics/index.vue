@@ -133,15 +133,47 @@
         <el-table-column label="参与时间" width="155" align="center">
           <template slot-scope="scope">{{ formatTime(scope.row.scanTime) }}</template>
         </el-table-column>
+        <el-table-column label="操作" width="80" align="center" fixed="right">
+          <template slot-scope="scope">
+            <el-button type="text" size="small" @click="openDetail(scope.row)">详情</el-button>
+          </template>
+        </el-table-column>
       </el-table>
       <pagination v-show="total > 0" :total="total" :page.sync="query.pageNum" :limit.sync="query.pageSize" @pagination="load" />
       <el-empty v-if="!loading && !rows.length" description="暂无统计数据" />
     </el-card>
+
+    <el-dialog title="学生选择明细" :visible.sync="detailVisible" width="760px" append-to-body>
+      <el-descriptions v-if="detail" :column="2" border size="small">
+        <el-descriptions-item label="学生">{{ detail.studentName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="学号">{{ detail.studentNo || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="学校">{{ detail.schoolName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="活动">{{ detail.instanceName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="院系">{{ detail.departmentName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="专业">{{ detail.major || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="结果类型">{{ detail.resultTypeName || '未完成' }}</el-descriptions-item>
+        <el-descriptions-item label="TOP1 / TOP2">
+          {{ (detail.top1DimensionName || '—') + ' / ' + (detail.top2DimensionName || '—') }}
+        </el-descriptions-item>
+        <el-descriptions-item label="已答关数">{{ detail.answeredRounds || 0 }} / 6</el-descriptions-item>
+        <el-descriptions-item label="参与时间">{{ formatTime(detail.scanTime) }}</el-descriptions-item>
+      </el-descriptions>
+      <div class="answers-title">6 关选择明细</div>
+      <el-table :data="answers" border size="small" max-height="320">
+        <el-table-column prop="roundNo" label="关卡" width="80" align="center">
+          <template slot-scope="scope">第 {{ scope.row.roundNo }} 关</template>
+        </el-table-column>
+        <el-table-column prop="optionLabel" label="选项" width="70" align="center" />
+        <el-table-column prop="optionName" label="物品" min-width="260" />
+        <el-table-column prop="dimensionName" label="维度" width="140" align="center" />
+      </el-table>
+      <el-empty v-if="!answers.length" description="尚无已选物品" />
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { getStatistics, exportStatisticsExcel, validateExcelBlob, listDimensions, nlldErrorMessage } from '@/api/nlld'
+import { getStatistics, getRecord, exportStatisticsExcel, validateExcelBlob, listDimensions, nlldErrorMessage } from '@/api/nlld'
 import { listSchool } from '@/api/school/school'
 import { listDepartment } from '@/api/school/department'
 import { listInstances } from '@/api/activity/week'
@@ -159,6 +191,9 @@ export default {
       dimensionStats: [],
       resultTypeStats: [],
       analysis: '',
+      detailVisible: false,
+      detail: null,
+      answers: [],
       schools: [],
       departments: [],
       activities: [],
@@ -263,6 +298,18 @@ export default {
     rowIndex(index) {
       return (this.query.pageNum - 1) * this.query.pageSize + index + 1
     },
+    openDetail(row) {
+      this.detail = row
+      this.answers = []
+      this.detailVisible = true
+      getRecord(row.recordId)
+        .then(res => {
+          const data = res.data || {}
+          this.detail = data.record || row
+          this.answers = data.answers || []
+        })
+        .catch(error => this.$modal.msgError(nlldErrorMessage(error)))
+    },
     async exportExcel() {
       if (this.exporting) return
       if (!this.query.schoolId || !this.query.instanceId) {
@@ -340,5 +387,10 @@ export default {
   color: #34495e;
   line-height: 1.9;
   white-space: pre-wrap;
+}
+.answers-title {
+  margin: 18px 0 10px;
+  font-weight: 600;
+  color: #303133;
 }
 </style>
