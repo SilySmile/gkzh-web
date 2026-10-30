@@ -55,20 +55,23 @@
     <div class="export-tip">参与日期按扫码时间筛选，结束日期包含当天；下载 Excel 需先选择学校和活动，导出与当前筛选条件一致。</div>
 
     <el-row :gutter="16" class="summary-row">
-      <el-col :span="5">
+      <el-col :span="4">
         <el-card shadow="never"><div class="metric-label">扫码参与人数</div><div class="metric-value">{{ summary.enteredCount || 0 }}</div></el-card>
       </el-col>
-      <el-col :span="5">
+      <el-col :span="4">
         <el-card shadow="never"><div class="metric-label">完成测评人数</div><div class="metric-value">{{ summary.completedCount || 0 }}</div></el-card>
       </el-col>
-      <el-col :span="5">
+      <el-col :span="4">
         <el-card shadow="never"><div class="metric-label">完成率</div><div class="metric-value">{{ summary.completionRate || 0 }}%</div></el-card>
       </el-col>
-      <el-col :span="5">
+      <el-col :span="4">
         <el-card shadow="never"><div class="metric-label">TOP2 类型</div><div class="metric-value">{{ summary.top2Count || 0 }} <span class="metric-sub">{{ summary.top2Rate || 0 }}%</span></div></el-card>
       </el-col>
       <el-col :span="4">
         <el-card shadow="never"><div class="metric-label">多元开放型</div><div class="metric-value">{{ summary.openCount || 0 }} <span class="metric-sub">{{ summary.openRate || 0 }}%</span></div></el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card shadow="never"><div class="metric-label">保存截图人数</div><div class="metric-value">{{ summary.savedCount || 0 }} <span class="metric-sub">{{ summary.savedRate || 0 }}%</span></div></el-card>
       </el-col>
     </el-row>
 
@@ -133,6 +136,12 @@
         <el-table-column label="参与时间" width="155" align="center">
           <template slot-scope="scope">{{ formatTime(scope.row.scanTime) }}</template>
         </el-table-column>
+        <el-table-column label="保存截图" width="100" align="center">
+          <template slot-scope="scope">
+            <el-tag v-if="scope.row.posterSaved" type="success" size="mini">已保存</el-tag>
+            <el-tag v-else type="info" size="mini">未保存</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="80" align="center" fixed="right">
           <template slot-scope="scope">
             <el-button type="text" size="small" @click="openDetail(scope.row)">详情</el-button>
@@ -157,6 +166,7 @@
         </el-descriptions-item>
         <el-descriptions-item label="已答关数">{{ detail.answeredRounds || 0 }} / 6</el-descriptions-item>
         <el-descriptions-item label="参与时间">{{ formatTime(detail.scanTime) }}</el-descriptions-item>
+        <el-descriptions-item label="保存截图">{{ detail.posterSavedName || '未保存' }}</el-descriptions-item>
       </el-descriptions>
       <div class="answers-title">6 关选择明细</div>
       <el-table :data="answers" border size="small" max-height="320">
