@@ -256,6 +256,7 @@ export default {
         })
     },
     reasonText(reason) {
+      if (reason === 'den') return '进入兽穴'
       if (reason === 'capture_all') return '吃光对方'
       if (reason === 'timeout') return '时间到'
       if (reason === 'no_move') return '无子可动'
