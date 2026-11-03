@@ -4,7 +4,7 @@
     <el-card v-if="view" class="view-card">
       <div slot="header" class="card-header">
         <span>{{ view.gameTitle }}</span>
-        <el-button v-if="['mind-window', 'sszctop', 'zycck', 'zyjdc', 'nlld'].includes(view.viewType)" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
+        <el-button v-if="['mind-window', 'sszctop', 'zycck', 'zyjdc', 'nlld', 'zyfxq'].includes(view.viewType)" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
       </div>
 
       <template v-if="view.viewType === 'mind-window'">
@@ -205,6 +205,83 @@
           </el-tab-pane>
         </el-tabs>
       </template>
+      <template v-else-if="view.viewType === 'zyfxq'">
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="第一页：整体参与情况" name="overview">
+            <div class="summary-line">
+              参与总人数：<b>{{ zyfxqSummary.participantCount || 0 }}</b> 人
+              <span class="summary-separator">平均单局耗时：<b>{{ zyfxqSummary.avgDurationSeconds || 0 }}</b> 秒</span>
+              <span class="summary-separator">累计掷骰总次数：<b>{{ zyfxqSummary.rollTotal || 0 }}</b> 次</span>
+              <span class="summary-separator">整体通过人数：<b>{{ zyfxqSummary.winCount || 0 }}</b> 人</span>
+              <span class="summary-separator">通过率：<b>{{ zyfxqSummary.passRate || 0 }}%</b></span>
+            </div>
+            <el-table :data="view.records || []" border stripe>
+              <el-table-column prop="studentName" label="学生" width="110" />
+              <el-table-column prop="studentNo" label="学号" width="130" />
+              <el-table-column prop="schoolName" label="学校" min-width="150" />
+              <el-table-column prop="departmentName" label="院系" min-width="150" />
+              <el-table-column prop="major" label="专业" min-width="120" />
+              <el-table-column prop="resultName" label="结果" width="100" align="center" />
+              <el-table-column prop="rollCount" label="掷骰次数" width="100" align="center" />
+              <el-table-column prop="stepTotal" label="行进步数" width="100" align="center" />
+              <el-table-column label="耗时" width="100" align="center">
+                <template slot-scope="scope">
+                  {{ scope.row.durationSeconds == null ? '-' : scope.row.durationSeconds + ' 秒' }}
+                </template>
+              </el-table-column>
+              <el-table-column label="参与时间" width="160" align="center">
+                <template slot-scope="scope">{{ formatTime(scope.row.scanTime) }}</template>
+              </el-table-column>
+            </el-table>
+            <el-alert v-if="view.records && view.records.length" :title="'仅展示最近 ' + view.records.length + ' 条记录，完整数据请在“参与记录”或 Excel 中查看。'" type="info" :closable="false" style="margin-top: 12px" />
+            <el-empty v-if="!(view.records || []).length" description="暂无参与记录" />
+          </el-tab-pane>
+          <el-tab-pane label="第二页：知识点与题目正确率" name="questions">
+            <div class="summary-line">
+              整体答题正确率：<b>{{ zyfxqSummary.correctRate || 0 }}%</b>
+              <span class="summary-separator">超时答题占比：<b>{{ zyfxqSummary.timeoutRate || 0 }}%</b></span>
+              <span class="summary-separator">累计作答题次：<b>{{ zyfxqSummary.answerTotal || 0 }}</b></span>
+            </div>
+            <el-table :data="view.questionTypeStats || []" border stripe>
+              <el-table-column prop="serialNo" label="序号" width="70" align="center" />
+              <el-table-column prop="questionTypeName" label="知识点" width="140" align="center" />
+              <el-table-column prop="answerCount" label="作答次数" width="110" align="center" />
+              <el-table-column prop="correctCount" label="答对次数" width="110" align="center" />
+              <el-table-column label="正确率" width="120" align="center">
+                <template slot-scope="scope">{{ scope.row.correctRate }}%</template>
+              </el-table-column>
+              <el-table-column prop="timeoutCount" label="超时次数" width="110" align="center" />
+              <el-table-column label="超时占比" width="110" align="center">
+                <template slot-scope="scope">{{ scope.row.timeoutRate }}%</template>
+              </el-table-column>
+              <el-table-column label="每题平均作答用时" min-width="150" align="center">
+                <template slot-scope="scope">{{ scope.row.avgCostSeconds }} 秒</template>
+              </el-table-column>
+            </el-table>
+            <el-table :data="view.questionStats || []" border stripe style="margin-top: 16px" max-height="420">
+              <el-table-column prop="serialNo" label="序号" width="70" align="center" />
+              <el-table-column prop="questionTypeName" label="知识点" width="120" align="center" />
+              <el-table-column prop="title" label="题目" min-width="340" show-overflow-tooltip />
+              <el-table-column prop="answerCount" label="作答次数" width="100" align="center" />
+              <el-table-column prop="correctCount" label="答对" width="80" align="center" />
+              <el-table-column prop="wrongCount" label="答错" width="80" align="center" />
+              <el-table-column label="正确率" width="110" align="center">
+                <template slot-scope="scope">{{ scope.row.correctRate }}%</template>
+              </el-table-column>
+              <el-table-column label="平均作答用时" width="130" align="center">
+                <template slot-scope="scope">{{ scope.row.avgCostSeconds }} 秒</template>
+              </el-table-column>
+            </el-table>
+            <el-alert title="高频错题与整体分析" type="info" :closable="false" description="按答错次数（含超时）从高到低排列，仅作为活动复盘和知识点讲解参考。" style="margin-top: 16px" />
+            <ol v-if="(view.wrongQuestions || []).length" class="wrong-list">
+              <li v-for="item in view.wrongQuestions" :key="item.questionId">
+                {{ item.title }}（答错 {{ item.wrongCount }} 次，正确率 {{ item.correctRate }}%）
+              </li>
+            </ol>
+            <div class="analysis-text">{{ view.analysis || '暂无分析结果' }}</div>
+          </el-tab-pane>
+        </el-tabs>
+      </template>
       <el-empty v-else :description="view.message || '该游戏暂未配置查看模板'" />
     </el-card>
   </div>
@@ -225,7 +302,8 @@ export default {
     zycckFinishedCount() { return Number(this.view && (this.view.finishedCount != null ? this.view.finishedCount : this.view.finished)) || 0 },
     zycckCompletionRate() { const value = this.view && this.view.completionRate != null ? this.view.completionRate : (this.zycckEnteredCount ? Math.round(this.zycckFinishedCount * 10000 / this.zycckEnteredCount) / 100 : 0); return value + '%' },
     zyjdcSummary() { return (this.view && this.view.summary) || {} },
-    nlldSummary() { return (this.view && this.view.summary) || {} }
+    nlldSummary() { return (this.view && this.view.summary) || {} },
+    zyfxqSummary() { return (this.view && this.view.summary) || {} }
   },
   created() { this.loadView() },
   methods: {
@@ -234,7 +312,7 @@ export default {
       getGameView(this.$route.params.gameId).then(res => {
         this.view = res.data
         const type = res.data && res.data.viewType
-        this.activeTab = type === 'sszctop' ? 'dimensions' : (type === 'zycck' || type === 'zyjdc' || type === 'nlld' ? 'overview' : 'types')
+        this.activeTab = type === 'sszctop' ? 'dimensions' : (type === 'zycck' || type === 'zyjdc' || type === 'nlld' || type === 'zyfxq' ? 'overview' : 'types')
       }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.loading = false })
     },
     formatTime(value) {
@@ -267,5 +345,6 @@ export default {
 .dimension-no { display: inline-block; min-width: 26px; margin-right: 8px; padding: 3px 7px; border-radius: 50%; color: #fff; background: #67c23a; text-align: center; font-size: 14px; }
 .dimension-item p { color: #53657a; line-height: 1.8; margin: 0; }
 .summary-separator { margin-left: 28px; }
+.wrong-list { margin: 12px 0 0; padding-left: 24px; color: #53657a; line-height: 2; }
 @media (max-width: 900px) { .type-grid, .dimension-grid { grid-template-columns: 1fr; } }
 </style>
