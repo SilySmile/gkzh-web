@@ -52,6 +52,14 @@ export function delInstance(instanceId, schoolId) {
   })
 }
 
+/** 将已有活动添加到其他学校；已删除的学校关系会被恢复。 */
+export function addInstanceSchool(instanceId, schoolId) {
+  return request({
+    url: '/activity/week/instance/' + instanceId + '/schools/' + schoolId,
+    method: 'post'
+  })
+}
+
 export function listInstanceSchools(instanceId) {
   return request({
     url: '/activity/week/instance/' + instanceId + '/schools',
