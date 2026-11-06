@@ -59,7 +59,18 @@
             prop="dimensionId"
             label="ID"
             width="80"
-          /><el-table-column prop="name" label="名称" /><el-table-column
+          /><el-table-column label="图片" width="96" align="center"
+            ><template slot-scope="s"
+              ><el-image
+                v-if="s.row.imageUrl"
+                class="row-image"
+                :src="s.row.imageUrl"
+                :preview-src-list="[s.row.imageUrl]"
+                fit="contain" /><span v-else class="empty-image"
+                >未设置</span
+              ></template
+            ></el-table-column
+          ><el-table-column prop="name" label="名称" /><el-table-column
             prop="description"
             label="说明"
             show-overflow-tooltip
@@ -142,7 +153,18 @@
             prop="careerId"
             label="ID"
             width="80"
-          /><el-table-column prop="name" label="职业" /><el-table-column
+          /><el-table-column label="图片" width="96" align="center"
+            ><template slot-scope="s"
+              ><el-image
+                v-if="s.row.imageUrl"
+                class="row-image"
+                :src="s.row.imageUrl"
+                :preview-src-list="[s.row.imageUrl]"
+                fit="contain" /><span v-else class="empty-image"
+                >未设置</span
+              ></template
+            ></el-table-column
+          ><el-table-column prop="name" label="职业" /><el-table-column
             prop="major"
             label="相关专业"
           /><el-table-column
@@ -387,12 +409,30 @@
       ><el-form ref="form" :model="form" label-width="100px"
         ><template v-if="tab === 'dimension'"
           ><el-form-item label="维度名称"
-            ><el-input v-model="form.name" /></el-form-item></template
+            ><el-input v-model="form.name" /></el-form-item
+          ><el-form-item label="维度图片"
+            ><ImageUpload
+              v-model="form.imageUrl"
+              :limit="1"
+              :file-size="2"
+              :is-show-tip="false" /><div class="form-tip">
+              建议 420×379 PNG，已含维度图标与名称；不设置时小程序使用内置素材
+            </div></el-form-item
+          ></template
         ><template v-if="tab === 'career'"
           ><el-form-item label="职业"
             ><el-input v-model="form.name" /></el-form-item
           ><el-form-item label="相关专业"
-            ><el-input v-model="form.major" /></el-form-item></template
+            ><el-input v-model="form.major" /></el-form-item
+          ><el-form-item label="职业图片"
+            ><ImageUpload
+              v-model="form.imageUrl"
+              :limit="1"
+              :file-size="2"
+              :is-show-tip="false" /><div class="form-tip">
+              建议 380×289 PNG，已含职业图标与名称；不设置时小程序使用内置素材
+            </div></el-form-item
+          ></template
         ><template v-if="tab === 'rank'"
           ><el-form-item label="维度"
             ><el-select v-model="form.dimensionId" filterable
@@ -493,8 +533,10 @@ import {
   getRoomLogDetails,
   clearTestRecord,
 } from "@/api/sszctop";
+import ImageUpload from "@/components/ImageUpload";
 export default {
   name: "SszctopConfig",
+  components: { ImageUpload },
   data() {
     return {
       tab: "dimension",
@@ -804,6 +846,22 @@ export default {
 }
 .delete-record {
   color: #f56c6c;
+}
+.row-image {
+  width: 64px;
+  height: 64px;
+  border-radius: 6px;
+  background: #f7f9fc;
+}
+.empty-image {
+  color: #b3bfd0;
+  font-size: 12px;
+}
+.form-tip {
+  margin-top: 6px;
+  color: #98a6bb;
+  font-size: 12px;
+  line-height: 1.6;
 }
 .mt20 {
   margin-top: 16px;

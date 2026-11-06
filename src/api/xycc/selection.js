@@ -9,6 +9,15 @@ export function listSelection(query) {
   })
 }
 
+// 用户记录列表：包含学生、学校、院系、专业、选择图案和霍兰德类型
+export function listSelectionRecords(query) {
+  return request({
+    url: '/xycc/selection/records',
+    method: 'get',
+    params: query
+  })
+}
+
 // 查询用户记录详细
 export function getSelection(userSelectionId) {
   return request({
