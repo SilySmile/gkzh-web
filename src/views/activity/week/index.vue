@@ -6,7 +6,11 @@
           <div slot="header">
             <span>活动配置</span>
           </div>
-          <el-select v-model="selectedBizType" placeholder="选择活动" style="width: 100%" @change="loadInstances">
+          <el-select v-model="selectedSchoolId" placeholder="请先选择学校" style="width: 100%; margin-bottom: 10px" @change="loadInstances">
+            <el-option v-for="school in schoolList" :key="school.schoolId" :label="school.title" :value="school.schoolId" />
+          </el-select>
+
+          <el-select v-model="selectedBizType" placeholder="选择活动" style="width: 100%" :disabled="!selectedSchoolId" @change="loadInstances">
             <el-option
               v-for="item in definitions"
               :key="item.bizType"
@@ -28,7 +32,7 @@
                 <div class="instance-time">{{ item.startTime }} ~ {{ item.endTime }}</div>
                 <div class="instance-actions">
                   <el-button v-if="item.status !== '2'" type="text" size="mini" @click.stop="editInstance(item)">编辑</el-button>
-                  <el-button v-if="item.status === '0'" type="text" size="mini" style="color:#f56c6c" @click.stop="removeInstance(item)">删除</el-button>
+                  <el-button type="text" size="mini" style="color:#f56c6c" :loading="deletingInstanceId === item.instanceId" :disabled="!selectedSchoolId || deletingInstanceId !== null" @click.stop="removeInstance(item)">删除本校活动</el-button>
                 </div>
               </div>
               <div class="instance-switch">
@@ -47,7 +51,7 @@
             </div>
           </div>
 
-          <el-button type="primary" size="mini" icon="el-icon-plus" @click="openInstanceDialog()">新增实例</el-button>
+          <el-button type="primary" size="mini" icon="el-icon-plus" :disabled="!selectedSchoolId" @click="openInstanceDialog()">新增实例</el-button>
         </el-card>
       </el-col>
 
@@ -55,9 +59,7 @@
         <el-card v-loading="loading">
           <div slot="header">
             <span>区域与游戏</span>
-            <el-select v-model="selectedSchoolId" placeholder="请选择学校" size="mini" style="width: 180px; margin-left: 12px" @change="loadAreas">
-              <el-option v-for="school in schoolList" :key="school.schoolId" :label="school.title" :value="school.schoolId" />
-            </el-select>
+            <el-tag v-if="currentSchool" size="small" type="info" style="margin-left: 12px">{{ currentSchool.title }}</el-tag>
             <el-button size="mini" type="warning" :disabled="!selectedInstanceId || isEndedInstance()" @click="openSchoolConfigDialog">学校抽奖门槛</el-button>
             <el-button style="float: right" type="success" size="mini" icon="el-icon-plus" :disabled="!selectedInstanceId || isEndedInstance()" @click="openAreaDialog">新增区域</el-button>
           </div>
@@ -91,7 +93,8 @@
     </el-row>
 
     <el-dialog :title="instanceDialogTitle" :visible.sync="instanceDialogVisible" width="480px">
-      <el-form :model="instanceForm" label-width="90px">
+      <el-form :model="instanceForm" label-width="90px">
+        <el-form-item label="所属学校"><el-input :value="currentSchool ? currentSchool.title : null" disabled /></el-form-item>
         <el-form-item label="活动">
           <el-select v-model="instanceForm.bizType" style="width: 100%">
             <el-option v-for="item in definitions" :key="item.bizType" :label="item.name" :value="item.bizType" />
@@ -104,12 +107,12 @@
       </el-form>
       <div slot="footer">
         <el-button @click="instanceDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitInstance">确定</el-button>
+        <el-button type="primary" :loading="instanceSaving" @click="submitInstance">确定</el-button>
       </div>
     </el-dialog>
 
     <el-dialog title="学校抽奖门槛" :visible.sync="schoolConfigDialogVisible" width="780px">
-      <el-table :data="schoolList" size="mini" border>
+      <el-table :data="currentSchool ? [currentSchool] : []" size="mini" border>
         <el-table-column label="学校" prop="title" />
         <el-table-column label="绑定抽奖" width="220">
           <template slot-scope="scope">
@@ -139,7 +142,7 @@
       <el-form :model="areaForm" label-width="90px">
         <el-form-item label="区域名称"><el-input v-model="areaForm.title" /></el-form-item>
         <el-form-item label="所属学校" required>
-          <el-select v-model="areaForm.schoolId" style="width: 100%">
+          <el-select v-model="areaForm.schoolId" disabled style="width: 100%">
             <el-option v-for="school in schoolList" :key="school.schoolId" :label="school.title" :value="school.schoolId" />
           </el-select>
         </el-form-item>
@@ -236,12 +239,19 @@ export default {
       qrUrl: '',
       currentGameId: null,
       hasActiveInstance: false,
+      instanceSaving: false,
+      deletingInstanceId: null,
+      instanceRequestId: 0,
+      areaRequestId: 0,
       schoolConfigDialogVisible: false,
       schoolConfigForm: {},
       lotteryOptions: []
     }
   },
-  computed: {
+  computed: {
+    currentSchool() {
+      return this.schoolList.find(school => school.schoolId === this.selectedSchoolId) || null
+    },
     startDateOptions() {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
@@ -305,32 +315,35 @@ export default {
       const labels = { choice: '选择', answer: '答题', cooperation: '合作' }
       return labels[item.gameType] || item.gameName || item.gameType
     },
-    loadSchools() {
-      listSchool({ pageSize: 1000 }).then(res => {
-        this.schoolList = res.rows || []
-        this.schoolNameMap = {}
-        this.schoolList.forEach(school => {
-          this.$set(this.schoolNameMap, school.schoolId, school.title)
-        })
-        if (!this.selectedSchoolId && this.schoolList.length) {
-          this.selectedSchoolId = this.schoolList[0].schoolId
-          if (this.selectedInstanceId) {
-            this.loadAreas()
-          }
-        }
-      })
-    },
-    loadInstances() {
-      if (!this.selectedBizType) return
-      listInstances({ bizType: this.selectedBizType }).then(res => {
+    loadSchools() {
+      listSchool({ pageSize: 1000 }).then(res => {
+        this.schoolList = res.rows || []
+        this.schoolNameMap = {}
+        this.schoolList.forEach(school => {
+          this.$set(this.schoolNameMap, school.schoolId, school.title)
+        })
+      })
+    },
+    loadInstances() {
+      const requestId = ++this.instanceRequestId
+      ++this.areaRequestId
+      this.instances = []
+      this.hasActiveInstance = false
+      this.selectedInstanceId = null
+      this.selectedInstance = null
+      this.areas = []
+      this.gamesByArea = {}
+      this.loading = false
+      this.schoolConfigDialogVisible = false
+      this.areaDialogVisible = false
+      this.gameDialogVisible = false
+      if (!this.selectedBizType || !this.selectedSchoolId) return Promise.resolve()
+      return listInstances({ bizType: this.selectedBizType, schoolId: this.selectedSchoolId }).then(res => {
+        if (requestId !== this.instanceRequestId) return
         this.instances = res.data || []
         this.hasActiveInstance = this.instances.some(item => item.status === '1')
-        this.selectedInstanceId = null
-        this.selectedInstance = null
-        this.areas = []
-        this.gamesByArea = {}
-      })
-    },
+      })
+    },
     selectInstance(item) {
       this.selectedInstanceId = item.instanceId
       this.selectedInstance = item
@@ -339,49 +352,50 @@ export default {
     isEndedInstance() {
       return this.selectedInstance && this.selectedInstance.status === '2'
     },
-    loadAreas() {
-      if (!this.selectedInstanceId) return
-      this.loading = true
-      const params = { instanceId: this.selectedInstanceId }
-      if (this.selectedSchoolId) {
-        params.schoolId = this.selectedSchoolId
-      }
-      listAreas(params).then(res => {
-        this.areas = res.data || []
-        this.gamesByArea = {}
-        const jobs = this.areas.map(area => {
-          return listGames(area.areaId).then(gameRes => {
-            this.$set(this.gamesByArea, area.areaId, gameRes.data || [])
-          })
-        })
-        Promise.all(jobs).finally(() => {
-          this.loading = false
-        })
-      }).catch(() => {
-        this.loading = false
-      })
-    },
+    loadAreas() {
+      const requestId = ++this.areaRequestId
+      if (!this.selectedInstanceId || !this.selectedSchoolId) return Promise.resolve()
+      this.loading = true
+      const params = { instanceId: this.selectedInstanceId, schoolId: this.selectedSchoolId }
+      return listAreas(params).then(res => {
+        if (requestId !== this.areaRequestId) return
+        this.areas = res.data || []
+        this.gamesByArea = {}
+        return Promise.all(this.areas.map(area => listGames(area.areaId).then(gameRes => {
+          if (requestId === this.areaRequestId) {
+            this.$set(this.gamesByArea, area.areaId, gameRes.data || [])
+          }
+        })))
+      }).finally(() => {
+        if (requestId === this.areaRequestId) this.loading = false
+      })
+    },
     editInstance(item) {
       this.openInstanceDialog(item)
     },
     openSchoolConfigDialog() {
+      const schoolId = this.selectedSchoolId
+      const instanceId = this.selectedInstanceId
+      if (!schoolId || !instanceId) {
+        this.$message.warning('请先选择学校和活动')
+        return
+      }
       this.schoolConfigForm = {}
       this.lotteryOptions = []
       listActivity({ pageNum: 1, pageSize: 1000 }).then(res => {
         this.lotteryOptions = res.rows || []
       })
-      this.schoolList.forEach(school => {
-        this.$set(this.schoolConfigForm, school.schoolId, { minFinishCount: 0, lotteryId: null, maxDrawCount: 1 })
-      })
-      listInstanceSchools(this.selectedInstanceId).then(res => {
-        const list = res.data || []
-        list.forEach(item => {
-          this.$set(this.schoolConfigForm, item.schoolId, {
+      this.$set(this.schoolConfigForm, schoolId, { minFinishCount: 0, lotteryId: null, maxDrawCount: 1 })
+      return listInstanceSchools(instanceId).then(res => {
+        if (schoolId !== this.selectedSchoolId || instanceId !== this.selectedInstanceId) return
+        const item = (res.data || []).find(config => config.schoolId === schoolId)
+        if (item) {
+          this.$set(this.schoolConfigForm, schoolId, {
             minFinishCount: item.minFinishCount || 0,
             lotteryId: item.lotteryId || null,
             maxDrawCount: item.maxDrawCount == null ? 1 : item.maxDrawCount
           })
-        })
+        }
         this.schoolConfigDialogVisible = true
       })
     },
@@ -393,12 +407,13 @@ export default {
       })
     },
     submitSchoolConfig() {
-      const data = this.schoolList.map(school => ({
-        schoolId: school.schoolId,
-        minFinishCount: (this.schoolConfigForm[school.schoolId] || {}).minFinishCount || 0,
-        lotteryId: (this.schoolConfigForm[school.schoolId] || {}).lotteryId || null,
-        maxDrawCount: (this.schoolConfigForm[school.schoolId] || {}).maxDrawCount == null ? 1 : this.schoolConfigForm[school.schoolId].maxDrawCount
-      }))
+      const config = this.schoolConfigForm[this.selectedSchoolId] || {}
+      const data = [{
+        schoolId: this.selectedSchoolId,
+        minFinishCount: config.minFinishCount || 0,
+        lotteryId: config.lotteryId || null,
+        maxDrawCount: config.maxDrawCount == null ? 1 : config.maxDrawCount
+      }]
       saveInstanceSchools(this.selectedInstanceId, data).then(() => {
         this.$message.success('保存成功')
         this.schoolConfigDialogVisible = false
@@ -416,69 +431,75 @@ export default {
       const targetStatus = enabled ? '0' : '3'
       const actionText = enabled ? '启用' : '停用'
       this.$confirm(`确认${actionText}该活动实例？`, '提示').then(() => {
-        saveInstance({ instanceId: item.instanceId, status: targetStatus }).then(() => {
+        saveInstance({ instanceId: item.instanceId, schoolId: this.selectedSchoolId, status: targetStatus }).then(() => {
           this.$message.success(`${actionText}成功`)
           this.loadInstances()
         })
       }).catch(() => {})
     },
-    removeInstance(item) {
-      this.$confirm('确认删除该活动实例？', '提示').then(() => {
-        delInstance(item.instanceId).then(() => {
-          this.$message.success('删除成功')
-          if (this.selectedInstanceId === item.instanceId) {
-            this.selectedInstanceId = null
-            this.areas = []
-            this.gamesByArea = {}
-          }
-          this.loadInstances()
-        })
-      }).catch(() => {})
-    },
+    removeInstance(item) {
+      const schoolId = this.selectedSchoolId
+      const school = this.currentSchool
+      if (!schoolId || !school || this.deletingInstanceId !== null) return
+      this.deletingInstanceId = item.instanceId
+      return this.$confirm(`确认删除“${school.title}”的“${item.title}”活动？仅移除本校活动，其他学校不受影响；区域、游戏和历史参与记录、报告均保留。`, '删除本校活动', {
+        confirmButtonText: '删除本校活动',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => delInstance(item.instanceId, schoolId)).then(() => {
+        this.$message.success('本校活动已删除，历史数据已保留')
+        if (this.selectedSchoolId === schoolId) return this.loadInstances()
+      }).catch(() => {}).finally(() => {
+        this.deletingInstanceId = null
+      })
+    },
     openInstanceDialog(item) {
-      if (!item && !this.selectedBizType && this.definitions.length) {
-        this.selectedBizType = this.definitions[0].bizType
+      if (!this.selectedSchoolId) {
+        this.$message.warning('请先选择学校')
+        return
       }
       const isEdit = item && item.instanceId
       this.instanceDialogTitle = isEdit ? '编辑活动实例' : '新增活动实例'
-      this.instanceForm = isEdit ? { ...item } : {
-        bizType: this.selectedBizType,
-        title: '',
-        bannerUrl: '',
-        startTime: null,
-        endTime: null
-      }
-      this.instanceDialogVisible = true
-    },
-    submitInstance() {
-      if (!this.instanceForm.instanceId && this.instanceForm.endTime) {
-        const end = new Date(this.instanceForm.endTime + 'T23:59:59').getTime()
-        if (end < Date.now()) {
-          this.$message.warning('不能添加已结束的活动')
-          return
-        }
-      }
-      if (this.instanceForm.startTime && this.instanceForm.endTime) {
-        const start = new Date(this.instanceForm.startTime + 'T00:00:00').getTime()
-        const end = new Date(this.instanceForm.endTime + 'T23:59:59').getTime()
-        const overlap = this.instances.some(item => {
-          if (item.instanceId === this.instanceForm.instanceId) return false
-          if (!item.startTime || !item.endTime) return false
-          const itemStart = new Date(item.startTime + 'T00:00:00').getTime()
-          const itemEnd = new Date(item.endTime + 'T23:59:59').getTime()
-          return start < itemEnd && end > itemStart
-        })
-        if (overlap) {
-          this.$message.warning('所选时间范围与已有活动时间重叠，请调整后再添加')
-          return
-        }
-      }
-      saveInstance(this.instanceForm).then(() => {
-        this.$message.success('保存成功')
-        this.instanceDialogVisible = false
-        this.loadInstances()
-      })
-    },
+      this.instanceForm = Object.assign({}, isEdit ? item : {
+        bizType: this.selectedBizType,
+        title: '',
+        bannerUrl: '',
+        startTime: null,
+        endTime: null
+      }, { schoolId: this.selectedSchoolId })
+      this.instanceDialogVisible = true
+    },
+    submitInstance() {
+      if (this.instanceSaving) return
+      const payload = Object.assign({}, this.instanceForm)
+      if (!payload.schoolId) {
+        this.$message.warning('请先选择学校')
+        return
+      }
+      if (!payload.bizType || !payload.title || !payload.title.trim() || !payload.startTime || !payload.endTime) {
+        this.$message.warning('请填写活动类型、名称及起止时间')
+        return
+      }
+      const start = new Date(payload.startTime + 'T00:00:00').getTime()
+      const end = new Date(payload.endTime + 'T23:59:59').getTime()
+      if (start > end) {
+        this.$message.warning('结束时间不能早于开始时间')
+        return
+      }
+      if (!payload.instanceId && end < Date.now()) {
+        this.$message.warning('不能添加已结束的活动')
+        return
+      }
+      // 时间冲突由后端按提交的学校和活动类型统一校验，避免使用过期或其他类型的列表误判。
+      this.instanceSaving = true
+      return saveInstance(payload).then(() => {
+        this.$message.success('保存成功')
+        this.instanceDialogVisible = false
+        return this.loadInstances()
+      }).finally(() => {
+        this.instanceSaving = false
+      })
+    },
     openAreaDialog() {
       this.areaDialogTitle = '新增区域'
       this.areaForm = {

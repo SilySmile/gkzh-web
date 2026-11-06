@@ -45,9 +45,9 @@ export function saveInstance(data) {
   })
 }
 
-export function delInstance(instanceId) {
+export function delInstance(instanceId, schoolId) {
   return request({
-    url: '/activity/week/instance/' + instanceId,
+    url: '/activity/week/instance/' + instanceId + '/schools/' + schoolId,
     method: 'delete'
   })
 }
