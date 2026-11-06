@@ -190,11 +190,18 @@
                               :value="scope.row.gender"/>
                 </template>
             </el-table-column>
-            <el-table-column label="年级" align="center" prop="grade">
+            <el-table-column label="年级" align="center" prop="grade" width="120">
                 <template slot-scope="scope">
-                    <dict-tag :options="dict.type.grade_type"
+                    <dict-tag v-if="scope.row.grade" :options="dict.type.grade_type"
                               :value="scope.row.grade"/>
+                    <span v-else>-</span>
                 </template>
+            </el-table-column>
+            <el-table-column label="学历" align="center" prop="education" width="110">
+                <template slot-scope="scope">{{ scope.row.education || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="毕业时间" align="center" prop="graduationTime" width="110">
+                <template slot-scope="scope">{{ scope.row.graduationTime || '-' }}</template>
             </el-table-column>
             <el-table-column label="录取方式" align="center" prop="lqfs">
                 <template slot-scope="scope">
@@ -326,6 +333,17 @@
                         <el-option v-for="dict in dict.type.grade_type" :key="dict.value"
                                    :label="dict.label" :value="dict.value"/>
                     </el-select>
+                </el-form-item>
+                <el-form-item label="学历" prop="education">
+                    <el-select v-model="form.education" placeholder="请选择学历" clearable style="width: 100%">
+                        <el-option v-for="item in educationOptions" :key="item"
+                                   :label="item" :value="item"/>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="毕业时间" prop="graduationTime">
+                    <el-date-picker v-model="form.graduationTime" type="month"
+                                    value-format="yyyy-MM" placeholder="请选择毕业年月"
+                                    style="width: 100%"/>
                 </el-form-item>
                 <el-form-item label="录取方式" prop="lqfs">
                     <el-select v-model="form.lqfs" placeholder="请选择录取方式" clearable>
@@ -473,6 +491,8 @@ export default {
             },
             // 学校选项
             schoolOptions: [],
+            // 学历选项，与小程序注册页保持一致
+            educationOptions: ['高中', '中专', '大专', '本科', '硕士研究生', '博士研究生', '其他'],
             // 专业选项
             departmentOptions: [],
             // 是否显示院系选择
@@ -645,6 +665,8 @@ export default {
                 className: null,
                 enrollmentYear: null,
                 grade: null,
+                education: null,
+                graduationTime: null,
                 lqfs: null,
                 syd: null,
                 status: "0",
@@ -785,6 +807,9 @@ export default {
         },
         /** 提交按钮 */
         submitForm() {
+            // 学历、毕业时间允许清空：null 改为空字符串，服务端才会写入空值
+            this.form.education = this.form.education || "";
+            this.form.graduationTime = this.form.graduationTime || "";
             // 动态设置验证规则
             const rules = {...this.rules};
 
