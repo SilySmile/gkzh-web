@@ -10,13 +10,21 @@
         />
       </el-form-item>
 
-      <el-form-item label="所属抽奖活动" prop="activityTitle">
-        <el-input
-          v-model="queryParams.activityTitle"
-          placeholder="请输入所属抽奖活动"
+      <el-form-item label="所属抽奖活动" prop="lotteryId">
+        <el-select
+          v-model="queryParams.lotteryId"
           clearable
-          @keyup.enter.native="handleQuery"
-        />
+          filterable
+          placeholder="请选择抽奖活动"
+          style="width: 220px"
+        >
+          <el-option
+            v-for="activity in activityOptions"
+            :key="activity.lotteryId"
+            :label="activity.title"
+            :value="activity.lotteryId"
+          ></el-option>
+        </el-select>
       </el-form-item>
 
       <el-form-item label="活动类型" prop="bizType">
@@ -69,10 +77,19 @@
         </template>
       </el-table-column>
       <el-table-column label="奖品名称" align="center" prop="prizeTitle" />
-      <el-table-column label="文本核销码" align="center" prop="redemptionCode" />
+      <el-table-column label="文本核销码" align="center" prop="redemptionCode">
+        <template slot-scope="scope">
+          <span>{{ scope.row.needRedemption === '0' ? '—' : scope.row.redemptionCode }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="展示名称" align="center" prop="resultName" />
       <el-table-column label="抽奖时间" align="center" prop="createTime" width="180" />
-      <el-table-column label="核销状态" align="center" prop="redemptionStatus"><template slot-scope="scope"><el-tag :type="scope.row.redemptionStatus==='1'?'success':'warning'">{{ scope.row.redemptionStatus==='1'?'已核销':'待核销' }}</el-tag></template></el-table-column>
+      <el-table-column label="核销状态" align="center" prop="redemptionStatus">
+        <template slot-scope="scope">
+          <el-tag v-if="scope.row.needRedemption === '0'" type="info">无需核销</el-tag>
+          <el-tag v-else :type="scope.row.redemptionStatus==='1'?'success':'warning'">{{ scope.row.redemptionStatus==='1'?'已核销':'待核销' }}</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="核销时间" align="center" prop="redeemTime" width="180" />
       <el-table-column label="核销操作人" align="center" min-width="150">
         <template slot-scope="scope">
@@ -96,8 +113,8 @@
             v-hasPermi="['lottery:record:remove']"
           >删除</el-button>
           <el-button size="mini" type="text" icon="el-icon-document" @click="showRedemptionLogs(scope.row)">核销流水</el-button>
-          <el-button size="mini" type="text" icon="el-icon-picture" @click="showQrCode(scope.row)">查看核销码</el-button>
-          <el-button v-if="scope.row.redemptionStatus !== '1' && scope.row.prizeTitle !== '谢谢参与'" size="mini" type="text" icon="el-icon-check" @click="redeem(scope.row)">核销</el-button>
+          <el-button v-if="scope.row.needRedemption !== '0'" size="mini" type="text" icon="el-icon-picture" @click="showQrCode(scope.row)">查看核销码</el-button>
+          <el-button v-if="scope.row.needRedemption !== '0' && scope.row.redemptionStatus !== '1' && scope.row.prizeTitle !== '谢谢参与'" size="mini" type="text" icon="el-icon-check" @click="redeem(scope.row)">核销</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -182,6 +199,7 @@
 
 <script>
 import { listRecord, getRecord, delRecord, addRecord, updateRecord, getRedemptionLogs, redeemRecord } from "@/api/lottery/record"
+import { listActivity } from "@/api/lottery/activity"
 
 export default {
   name: "Record",
@@ -211,6 +229,7 @@ export default {
         pageSize: 10,
         userName: null,
         nickName: null,
+        lotteryId: null,
         activityTitle: null,
         bizType: null,
         prizeTitle: null,
@@ -229,12 +248,20 @@ export default {
       redemptionLogs: []
       ,qrVisible: false
       ,qrUrl: ''
+      ,activityOptions: []
     }
   },
   created() {
+    this.loadActivityOptions()
     this.getList()
   },
   methods: {
+    /** 加载抽奖活动下拉选项，替代手工输入活动名称 */
+    loadActivityOptions() {
+      listActivity({ orderByColumn: "lotteryId", isAsc: "desc" }).then(response => {
+        this.activityOptions = response.rows || []
+      })
+    },
     /** 查询抽奖记录列表 */
     getList() {
       this.loading = true

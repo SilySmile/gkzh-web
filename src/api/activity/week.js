@@ -45,10 +45,18 @@ export function saveInstance(data) {
   })
 }
 
-export function delInstance(instanceId) {
+export function delInstance(instanceId, schoolId) {
   return request({
-    url: '/activity/week/instance/' + instanceId,
+    url: '/activity/week/instance/' + instanceId + '/schools/' + schoolId,
     method: 'delete'
+  })
+}
+
+/** 将已有活动添加到其他学校；已删除的学校关系会被恢复。 */
+export function addInstanceSchool(instanceId, schoolId) {
+  return request({
+    url: '/activity/week/instance/' + instanceId + '/schools/' + schoolId,
+    method: 'post'
   })
 }
 
@@ -142,11 +150,11 @@ export function regenerateGameQrCode(gameId) {
   })
 }
 
-export function listGameConfigs(gameType) {
+export function listGameConfigs(gameType, status) {
   return request({
     url: '/activity/week/gameConfigs',
     method: 'get',
-    params: { gameType }
+    params: { gameType, status }
   })
 }
 

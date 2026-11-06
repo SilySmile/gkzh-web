@@ -4,7 +4,7 @@
     <el-card v-if="view" class="view-card">
       <div slot="header" class="card-header">
         <span>{{ view.gameTitle }}</span>
-        <el-button v-if="view.viewType === 'mind-window' || view.viewType === 'sszctop'" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
+        <el-button v-if="['mind-window', 'sszctop', 'zycck', 'zyjdc', 'nlld', 'zyfxq', 'jlcz'].includes(view.viewType)" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
       </div>
 
       <template v-if="view.viewType === 'mind-window'">
@@ -68,6 +68,299 @@
           </el-tab-pane>
         </el-tabs>
       </template>
+      <template v-else-if="view.viewType === 'zycck'">
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="参与概览" name="overview">
+            <div class="summary-line">
+              扫码参与：<b>{{ zycckEnteredCount }}</b>
+              <span class="summary-separator">完成探索：<b>{{ zycckFinishedCount }}</b></span>
+              <span class="summary-separator">完成率：<b>{{ zycckCompletionRate }}</b></span>
+            </div>
+            <el-table :data="view.categoryStats || []" border stripe>
+              <el-table-column prop="categoryName" label="职业大类" />
+              <el-table-column prop="questionCount" label="竞猜题数" width="120" align="center" />
+              <el-table-column prop="viewCount" label="浏览次数" width="120" align="center" />
+              <el-table-column prop="explorationCount" label="加入清单数" width="130" align="center" />
+            </el-table>
+            <el-empty v-if="!(view.categoryStats || []).length" description="暂无职业探索统计" />
+          </el-tab-pane>
+          <el-tab-pane label="用户记录" name="records">
+            <el-table :data="view.records || []" border stripe>
+              <el-table-column prop="studentName" label="学生" width="120" />
+              <el-table-column prop="schoolName" label="学校" min-width="140" />
+              <el-table-column prop="departmentName" label="院系" min-width="140" />
+              <el-table-column prop="major" label="专业" min-width="120" />
+              <el-table-column prop="gender" label="性别" width="70" />
+              <el-table-column prop="status" label="状态" width="90" />
+            </el-table>
+            <el-empty v-if="!(view.records || []).length" description="暂无用户记录" />
+          </el-tab-pane>
+        </el-tabs>
+      </template>
+      <template v-else-if="view.viewType === 'zyjdc'">
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="第一页：学生角色选择整体数据" name="overview">
+            <div class="summary-line">
+              扫码参与：<b>{{ zyjdcSummary.enteredCount || 0 }}</b>
+              <span class="summary-separator">完成角色选择：<b>{{ zyjdcSummary.selectedCount || 0 }}</b></span>
+              <span class="summary-separator">通关：<b>{{ zyjdcSummary.completedCount || 0 }}</b></span>
+              <span class="summary-separator">完成率：<b>{{ zyjdcSummary.completionRate || 0 }}%</b></span>
+              <span class="summary-separator">平均尝试：<b>{{ zyjdcSummary.averageAttempts || 0 }}</b> 次</span>
+            </div>
+            <el-table :data="view.records || []" border stripe>
+              <el-table-column prop="studentName" label="学生" width="110" />
+              <el-table-column prop="studentNo" label="学号" width="130" />
+              <el-table-column prop="schoolName" label="学校" min-width="150" />
+              <el-table-column prop="departmentName" label="院系" min-width="150" />
+              <el-table-column prop="major" label="专业" min-width="120" />
+              <el-table-column prop="roleName" label="角色" width="90" align="center" />
+              <el-table-column prop="jobTitle" label="职场定位" min-width="150" />
+              <el-table-column prop="resultName" label="结果" width="80" align="center" />
+              <el-table-column label="参与时间" width="160" align="center">
+                <template slot-scope="scope">{{ formatTime(scope.row.scanTime) }}</template>
+              </el-table-column>
+            </el-table>
+            <el-alert v-if="view.records && view.records.length" :title="'仅展示最近 ' + view.records.length + ' 条记录，完整数据请在“参与记录”或 Excel 中查看。'" type="info" :closable="false" style="margin-top: 12px" />
+            <el-empty v-if="!(view.records || []).length" description="暂无角色选择记录" />
+          </el-tab-pane>
+          <el-tab-pane label="第二页：各角色偏好占比统计" name="roles">
+            <el-table :data="view.roleStats || []" border stripe>
+              <el-table-column prop="serialNo" label="序号" width="70" align="center" />
+              <el-table-column prop="roleName" label="动物角色" width="100" align="center" />
+              <el-table-column prop="jobTitle" label="职场定位" min-width="160" />
+              <el-table-column prop="rankLevel" label="等级" width="80" align="center" />
+              <el-table-column prop="userCount" label="选择人数" width="100" align="center" />
+              <el-table-column label="偏好占比" min-width="200">
+                <template slot-scope="scope">
+                  <el-progress :percentage="Number(scope.row.probability) || 0" :format="() => scope.row.probability + '%'" />
+                </template>
+              </el-table-column>
+              <el-table-column prop="finishedCount" label="通关人数" width="100" align="center" />
+              <el-table-column label="完成率" width="100" align="center">
+                <template slot-scope="scope">{{ scope.row.completionRate }}%</template>
+              </el-table-column>
+            </el-table>
+          </el-tab-pane>
+          <el-tab-pane label="第三页：整体偏好分析" name="analysis">
+            <el-alert title="分析说明" type="info" :closable="false" description="分析基于当前游戏全部参与学生的角色选择和胜负结果自动生成，仅作为活动复盘和生涯辅导参考。" />
+            <div class="analysis-text">{{ view.analysis || '暂无分析结果' }}</div>
+          </el-tab-pane>
+        </el-tabs>
+      </template>
+      <template v-else-if="view.viewType === 'nlld'">
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="第一页：学生价值观整体数据" name="overview">
+            <div class="summary-line">
+              扫码参与：<b>{{ nlldSummary.enteredCount || 0 }}</b>
+              <span class="summary-separator">完成测评：<b>{{ nlldSummary.completedCount || 0 }}</b></span>
+              <span class="summary-separator">完成率：<b>{{ nlldSummary.completionRate || 0 }}%</b></span>
+              <span class="summary-separator">TOP2：<b>{{ nlldSummary.top2Count || 0 }}</b> 人</span>
+              <span class="summary-separator">多元开放型：<b>{{ nlldSummary.openCount || 0 }}</b> 人</span>
+            </div>
+            <el-table :data="view.records || []" border stripe>
+              <el-table-column prop="studentName" label="学生" width="110" />
+              <el-table-column prop="studentNo" label="学号" width="130" />
+              <el-table-column prop="schoolName" label="学校" min-width="150" />
+              <el-table-column prop="departmentName" label="院系" min-width="150" />
+              <el-table-column prop="major" label="专业" min-width="120" />
+              <el-table-column prop="top1DimensionName" label="TOP1" width="120" align="center" />
+              <el-table-column prop="top2DimensionName" label="TOP2" width="120" align="center" />
+              <el-table-column prop="resultTypeName" label="结果类型" width="120" align="center" />
+              <el-table-column label="参与时间" width="160" align="center">
+                <template slot-scope="scope">{{ formatTime(scope.row.scanTime) }}</template>
+              </el-table-column>
+            </el-table>
+            <el-alert v-if="view.records && view.records.length" :title="'仅展示最近 ' + view.records.length + ' 条记录，完整数据请在“参与记录”或 Excel 中查看。'" type="info" :closable="false" style="margin-top: 12px" />
+            <el-empty v-if="!(view.records || []).length" description="暂无测评记录" />
+          </el-tab-pane>
+          <el-tab-pane label="第二页：各维度偏好占比统计" name="dimensions">
+            <div class="summary-line">
+              完成测评：<b>{{ (view.completedCount || 0) }}</b>
+              <span class="summary-separator">TOP2 类型：<b>{{ view.top2Count || 0 }}</b> 人</span>
+              <span class="summary-separator">多元开放型：<b>{{ view.openCount || 0 }}</b> 人</span>
+            </div>
+            <el-table :data="view.dimensionStats || []" border stripe>
+              <el-table-column prop="serialNo" label="序号" width="70" align="center" />
+              <el-table-column prop="dimensionName" label="维度" width="120" align="center" />
+              <el-table-column prop="dimensionGroup" label="分组" width="200" align="center" />
+              <el-table-column prop="selectedCount" label="被选次数" width="100" align="center" />
+              <el-table-column label="选择占比" min-width="170">
+                <template slot-scope="scope">
+                  <el-progress :percentage="Number(scope.row.selectedRate) || 0" :format="() => scope.row.selectedRate + '%'" />
+                </template>
+              </el-table-column>
+              <el-table-column prop="twoPointCount" label="得2分人数" width="110" align="center" />
+              <el-table-column label="偏好率" min-width="170">
+                <template slot-scope="scope">
+                  <el-progress :percentage="Number(scope.row.twoPointRate) || 0" :color="'#67c23a'" :format="() => scope.row.twoPointRate + '%'" />
+                </template>
+              </el-table-column>
+              <el-table-column prop="top2Count" label="进入TOP2" width="105" align="center" />
+              <el-table-column label="TOP2占比" width="100" align="center">
+                <template slot-scope="scope">{{ scope.row.top2Rate }}%</template>
+              </el-table-column>
+            </el-table>
+            <el-alert title="偏好分析" type="info" :closable="false" description="分析基于当前游戏全部完成测评学生的 15 维选择自动生成，仅作为活动复盘和生涯辅导参考。" style="margin-top: 16px" />
+            <div class="analysis-text">{{ view.analysis || '暂无分析结果' }}</div>
+          </el-tab-pane>
+        </el-tabs>
+      </template>
+      <template v-else-if="view.viewType === 'zyfxq'">
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="第一页：整体参与情况" name="overview">
+            <div class="summary-line">
+              参与总人数：<b>{{ zyfxqSummary.participantCount || 0 }}</b> 人
+              <span class="summary-separator">平均单局耗时：<b>{{ zyfxqSummary.avgDurationSeconds || 0 }}</b> 秒</span>
+              <span class="summary-separator">累计掷骰总次数：<b>{{ zyfxqSummary.rollTotal || 0 }}</b> 次</span>
+              <span class="summary-separator">整体通过人数：<b>{{ zyfxqSummary.winCount || 0 }}</b> 人</span>
+              <span class="summary-separator">通过率：<b>{{ zyfxqSummary.passRate || 0 }}%</b></span>
+            </div>
+            <el-table :data="view.records || []" border stripe>
+              <el-table-column prop="studentName" label="学生" width="110" />
+              <el-table-column prop="studentNo" label="学号" width="130" />
+              <el-table-column prop="schoolName" label="学校" min-width="150" />
+              <el-table-column prop="departmentName" label="院系" min-width="150" />
+              <el-table-column prop="major" label="专业" min-width="120" />
+              <el-table-column prop="resultName" label="结果" width="100" align="center" />
+              <el-table-column prop="rollCount" label="掷骰次数" width="100" align="center" />
+              <el-table-column prop="stepTotal" label="行进步数" width="100" align="center" />
+              <el-table-column label="耗时" width="100" align="center">
+                <template slot-scope="scope">
+                  {{ scope.row.durationSeconds == null ? '-' : scope.row.durationSeconds + ' 秒' }}
+                </template>
+              </el-table-column>
+              <el-table-column label="参与时间" width="160" align="center">
+                <template slot-scope="scope">{{ formatTime(scope.row.scanTime) }}</template>
+              </el-table-column>
+            </el-table>
+            <el-alert v-if="view.records && view.records.length" :title="'仅展示最近 ' + view.records.length + ' 条记录，完整数据请在“参与记录”或 Excel 中查看。'" type="info" :closable="false" style="margin-top: 12px" />
+            <el-empty v-if="!(view.records || []).length" description="暂无参与记录" />
+          </el-tab-pane>
+          <el-tab-pane label="第二页：知识点与题目正确率" name="questions">
+            <div class="summary-line">
+              整体答题正确率：<b>{{ zyfxqSummary.correctRate || 0 }}%</b>
+              <span class="summary-separator">超时答题占比：<b>{{ zyfxqSummary.timeoutRate || 0 }}%</b></span>
+              <span class="summary-separator">累计作答题次：<b>{{ zyfxqSummary.answerTotal || 0 }}</b></span>
+            </div>
+            <el-table :data="view.questionTypeStats || []" border stripe>
+              <el-table-column prop="serialNo" label="序号" width="70" align="center" />
+              <el-table-column prop="questionTypeName" label="知识点" width="140" align="center" />
+              <el-table-column prop="answerCount" label="作答次数" width="110" align="center" />
+              <el-table-column prop="correctCount" label="答对次数" width="110" align="center" />
+              <el-table-column label="正确率" width="120" align="center">
+                <template slot-scope="scope">{{ scope.row.correctRate }}%</template>
+              </el-table-column>
+              <el-table-column prop="timeoutCount" label="超时次数" width="110" align="center" />
+              <el-table-column label="超时占比" width="110" align="center">
+                <template slot-scope="scope">{{ scope.row.timeoutRate }}%</template>
+              </el-table-column>
+              <el-table-column label="每题平均作答用时" min-width="150" align="center">
+                <template slot-scope="scope">{{ scope.row.avgCostSeconds }} 秒</template>
+              </el-table-column>
+            </el-table>
+            <el-table :data="view.questionStats || []" border stripe style="margin-top: 16px" max-height="420">
+              <el-table-column prop="serialNo" label="序号" width="70" align="center" />
+              <el-table-column prop="questionTypeName" label="知识点" width="120" align="center" />
+              <el-table-column prop="title" label="题目" min-width="340" show-overflow-tooltip />
+              <el-table-column prop="answerCount" label="作答次数" width="100" align="center" />
+              <el-table-column prop="correctCount" label="答对" width="80" align="center" />
+              <el-table-column prop="wrongCount" label="答错" width="80" align="center" />
+              <el-table-column label="正确率" width="110" align="center">
+                <template slot-scope="scope">{{ scope.row.correctRate }}%</template>
+              </el-table-column>
+              <el-table-column label="平均作答用时" width="130" align="center">
+                <template slot-scope="scope">{{ scope.row.avgCostSeconds }} 秒</template>
+              </el-table-column>
+            </el-table>
+            <el-alert title="高频错题与整体分析" type="info" :closable="false" description="按答错次数（含超时）从高到低排列，仅作为活动复盘和知识点讲解参考。" style="margin-top: 16px" />
+            <ol v-if="(view.wrongQuestions || []).length" class="wrong-list">
+              <li v-for="item in view.wrongQuestions" :key="item.questionId">
+                {{ item.title }}（答错 {{ item.wrongCount }} 次，正确率 {{ item.correctRate }}%）
+              </li>
+            </ol>
+            <div class="analysis-text">{{ view.analysis || '暂无分析结果' }}</div>
+          </el-tab-pane>
+        </el-tabs>
+      </template>
+      <template v-else-if="view.viewType === 'jlcz'">
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="第一页：整体参与情况" name="overview">
+            <div class="summary-line">
+              参与总人数：<b>{{ jlczSummary.participantCount || 0 }}</b> 人
+              <span class="summary-separator">完成称重：<b>{{ jlczSummary.finishedCount || 0 }}</b> 人</span>
+              <span class="summary-separator">通关人数：<b>{{ jlczSummary.passCount || 0 }}</b> 人</span>
+              <span class="summary-separator">通关率：<b>{{ jlczSummary.passRate || 0 }}%</b></span>
+              <span class="summary-separator">平均简历分量：<b>{{ jlczSummary.avgTotalWeight || 0 }}g</b></span>
+              <span class="summary-separator">平均勾选：<b>{{ jlczSummary.avgSelectedCount || 0 }}</b> 项</span>
+              <span class="summary-separator">平均用时：<b>{{ jlczSummary.avgDurationSeconds || 0 }}</b> 秒</span>
+            </div>
+            <el-table :data="view.records || []" border stripe>
+              <el-table-column prop="studentName" label="学生" width="110" />
+              <el-table-column prop="studentNo" label="学号" width="130" />
+              <el-table-column prop="schoolName" label="学校" min-width="150" />
+              <el-table-column prop="departmentName" label="院系" min-width="150" />
+              <el-table-column prop="major" label="专业" min-width="120" />
+              <el-table-column label="总重量" width="100" align="center">
+                <template slot-scope="scope">
+                  {{ scope.row.status === 'finished' ? scope.row.totalWeight + 'g' : '-' }}
+                </template>
+              </el-table-column>
+              <el-table-column label="结果" width="100" align="center">
+                <template slot-scope="scope">
+                  <el-tag v-if="scope.row.status !== 'finished'" type="info" size="mini">进行中</el-tag>
+                  <el-tag v-else-if="scope.row.result === 'pass'" type="success" size="mini">通关</el-tag>
+                  <el-tag v-else type="danger" size="mini">未通关</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="selectedCount" label="勾选数" width="90" align="center" />
+              <el-table-column prop="attemptNo" label="次数" width="80" align="center" />
+              <el-table-column label="提交时间" width="160" align="center">
+                <template slot-scope="scope">{{ formatTime(scope.row.finishTime) }}</template>
+              </el-table-column>
+            </el-table>
+            <el-alert v-if="view.records && view.records.length" :title="'仅展示最近 ' + view.records.length + ' 条记录，完整数据请在“参与记录”或 Excel 中查看。'" type="info" :closable="false" style="margin-top: 12px" />
+            <el-empty v-if="!(view.records || []).length" description="暂无参与记录" />
+          </el-tab-pane>
+          <el-tab-pane label="第二页：砝码选择率与缺口" name="weights">
+            <el-table :data="view.categoryStats || []" border stripe>
+              <el-table-column prop="categoryName" label="大类" min-width="200" />
+              <el-table-column prop="weightCount" label="砝码数" width="100" align="center" />
+              <el-table-column prop="availableWeight" label="可获重量" width="110" align="center">
+                <template slot-scope="scope">{{ scope.row.availableWeight }}g</template>
+              </el-table-column>
+              <el-table-column prop="selectedCount" label="被选次数" width="100" align="center" />
+              <el-table-column prop="avgWeightPerParticipant" label="人均获得" width="110" align="center">
+                <template slot-scope="scope">{{ scope.row.avgWeightPerParticipant }}g</template>
+              </el-table-column>
+              <el-table-column label="类别选择率" width="120" align="center">
+                <template slot-scope="scope">{{ scope.row.selectionRate }}%</template>
+              </el-table-column>
+            </el-table>
+            <el-table :data="view.weightStats || []" border stripe style="margin-top: 16px" max-height="420">
+              <el-table-column prop="weightNo" label="编号" width="70" align="center" />
+              <el-table-column label="砝码" min-width="150">
+                <template slot-scope="scope">{{ scope.row.icon }} {{ scope.row.label }}</template>
+              </el-table-column>
+              <el-table-column prop="categoryName" label="类别" min-width="180" show-overflow-tooltip />
+              <el-table-column prop="weightG" label="重量" width="90" align="center">
+                <template slot-scope="scope">{{ scope.row.weightG }}g</template>
+              </el-table-column>
+              <el-table-column prop="selectedCount" label="勾选人数" width="100" align="center" />
+              <el-table-column label="选择率" width="110" align="center">
+                <template slot-scope="scope">{{ scope.row.selectedRate }}%</template>
+              </el-table-column>
+              <el-table-column prop="gapCount" label="未勾选人数" width="110" align="center" />
+            </el-table>
+            <div class="summary-line" style="margin-top: 16px">
+              总重区间分布：
+              <span v-for="item in view.distribution || []" :key="item.bucket" class="summary-separator">
+                {{ item.label }} <b>{{ item.count }}</b> 人
+              </span>
+            </div>
+            <div class="analysis-text">{{ view.analysis || '暂无分析结果' }}</div>
+          </el-tab-pane>
+        </el-tabs>
+      </template>
       <el-empty v-else :description="view.message || '该游戏暂未配置查看模板'" />
     </el-card>
   </div>
@@ -76,11 +369,21 @@
 <script>
 import { getGameView } from '@/api/activity/week'
 import { downloadGet } from '@/utils/request'
+import { zycckErrorMessage } from '@/api/zycck'
 
 export default {
   name: 'ActivityGameView',
   data() {
     return { loading: false, view: null, activeTab: 'types' }
+  },
+  computed: {
+    zycckEnteredCount() { return Number(this.view && (this.view.enteredCount != null ? this.view.enteredCount : this.view.participating)) || 0 },
+    zycckFinishedCount() { return Number(this.view && (this.view.finishedCount != null ? this.view.finishedCount : this.view.finished)) || 0 },
+    zycckCompletionRate() { const value = this.view && this.view.completionRate != null ? this.view.completionRate : (this.zycckEnteredCount ? Math.round(this.zycckFinishedCount * 10000 / this.zycckEnteredCount) / 100 : 0); return value + '%' },
+    zyjdcSummary() { return (this.view && this.view.summary) || {} },
+    nlldSummary() { return (this.view && this.view.summary) || {} },
+    zyfxqSummary() { return (this.view && this.view.summary) || {} },
+    jlczSummary() { return (this.view && this.view.summary) || {} }
   },
   created() { this.loadView() },
   methods: {
@@ -88,11 +391,19 @@ export default {
       this.loading = true
       getGameView(this.$route.params.gameId).then(res => {
         this.view = res.data
-        this.activeTab = res.data && res.data.viewType === 'sszctop' ? 'dimensions' : 'types'
-      }).finally(() => { this.loading = false })
+        const type = res.data && res.data.viewType
+        this.activeTab = type === 'sszctop' ? 'dimensions' : (type === 'zycck' || type === 'zyjdc' || type === 'nlld' || type === 'zyfxq' || type === 'jlcz' ? 'overview' : 'types')
+      }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.loading = false })
+    },
+    formatTime(value) {
+      if (!value) return '-'
+      const date = new Date(value)
+      if (isNaN(date.getTime())) return String(value)
+      const pad = (n) => (n < 10 ? '0' + n : '' + n)
+      return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes())
     },
     exportPdf() {
-      downloadGet('/activity/week/game/' + this.$route.params.gameId + '/view/export', {}, '游戏查看报告-' + (this.view && this.view.gameTitle ? this.view.gameTitle : '报告') + '.pdf')
+      downloadGet('/activity/week/game/' + this.$route.params.gameId + '/view/export', {}, '游戏查看报告-' + (this.view && this.view.gameTitle ? this.view.gameTitle : '报告') + '.pdf').catch(error => this.$modal.msgError(zycckErrorMessage(error)))
     }
   }
 }
@@ -114,5 +425,6 @@ export default {
 .dimension-no { display: inline-block; min-width: 26px; margin-right: 8px; padding: 3px 7px; border-radius: 50%; color: #fff; background: #67c23a; text-align: center; font-size: 14px; }
 .dimension-item p { color: #53657a; line-height: 1.8; margin: 0; }
 .summary-separator { margin-left: 28px; }
+.wrong-list { margin: 12px 0 0; padding-left: 24px; color: #53657a; line-height: 2; }
 @media (max-width: 900px) { .type-grid, .dimension-grid { grid-template-columns: 1fr; } }
 </style>

@@ -1,199 +1,185 @@
+<!-- 心愿橱窗用户记录：按学生、学校、院系、编码和完成日期筛选，展示所选图案与霍兰德类型。 -->
 <template>
-    <div class="app-container">
-        <el-form :model="queryParams" ref="queryForm" size="small"
-                 :inline="true" v-show="showSearch" label-width="68px">
-            <el-form-item label="用户名" prop="userName">
-                <el-input
-                    v-model="queryParams.userName"
-                    placeholder="请输入用户名"
-                    clearable
-                    @keyup.enter.native="handleQuery"
-                    style="width: 150px"
-                />
-            </el-form-item>
-            <el-form-item label="编码组合" prop="patternComboCode">
-                <el-input
-                    v-model="queryParams.patternComboCode"
-                    placeholder='请输入如"RIA"'
-                    clearable
-                    @keyup.enter.native="handleQuery"
-                    style="width: 150px"
-                />
-            </el-form-item>
-            <el-form-item label="职业方向" prop="careerTitles">
-                <el-input
-                    v-model="queryParams.careerTitles"
-                    placeholder='请输入如"工程师"'
-                    clearable
-                    @keyup.enter.native="handleQuery"
-                />
-            </el-form-item>
-            <el-form-item label="工作环境偏好" prop="envTitles"
-                          label-width="100px">
-                <el-input
-                    v-model="queryParams.envTitles"
-                    placeholder='请输入如"工程现场"'
-                    clearable
-                    @keyup.enter.native="handleQuery"
-                />
-            </el-form-item>
-            <el-form-item label="选择时间">
-                <el-date-picker
-                    v-model="daterangeCreatedAt"
-                    style="width: 240px"
-                    value-format="yyyy-MM-dd"
-                    type="daterange"
-                    range-separator="-"
-                    start-placeholder="开始日期"
-                    end-placeholder="结束日期"
-                ></el-date-picker>
-            </el-form-item>
-            <el-form-item>
-                <el-button type="primary" icon="el-icon-search" size="mini"
-                           @click="handleQuery">搜索
-                </el-button>
-                <el-button icon="el-icon-refresh" size="mini"
-                           @click="resetQuery">重置
-                </el-button>
-            </el-form-item>
-        </el-form>
+  <div class="app-container">
+    <el-form ref="queryForm" :model="query" :inline="true" size="small" label-width="68px">
+      <el-form-item label="学校" prop="schoolId">
+        <el-select v-model="query.schoolId" clearable filterable placeholder="全部学校" @change="schoolChanged">
+          <el-option v-for="item in schools" :key="item.schoolId" :label="item.title || item.name" :value="item.schoolId" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="活动" prop="instanceId">
+        <school-activity-select v-model="query.instanceId" :school-id="query.schoolId" />
+      </el-form-item>
+      <el-form-item label="院系" prop="departmentId">
+        <el-select v-model="query.departmentId" clearable filterable placeholder="全部院系">
+          <el-option v-for="item in departments" :key="item.departmentId" :label="item.title || item.name" :value="item.departmentId" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="专业" prop="major">
+        <el-input v-model.trim="query.major" clearable placeholder="专业名称" @keyup.enter.native="handleQuery" />
+      </el-form-item>
+      <el-form-item label="学号" prop="studentNo">
+        <el-input v-model.trim="query.studentNo" clearable placeholder="学号" @keyup.enter.native="handleQuery" />
+      </el-form-item>
+      <el-form-item label="性别" prop="gender">
+        <el-select v-model="query.gender" clearable placeholder="全部">
+          <el-option label="男" value="男" />
+          <el-option label="女" value="女" />
+          <el-option label="其他/未填" value="其他" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="编码组合" prop="code">
+        <el-input v-model.trim="query.code" clearable placeholder="如 RIA" @keyup.enter.native="handleQuery" />
+      </el-form-item>
+      <el-form-item label="完成时间">
+        <el-date-picker v-model="dateRange" style="width: 240px" value-format="yyyy-MM-dd" type="daterange"
+          range-separator="-" start-placeholder="开始日期" end-placeholder="结束日期" />
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" icon="el-icon-search" @click="handleQuery">查询</el-button>
+        <el-button icon="el-icon-refresh" @click="resetQuery">重置</el-button>
+      </el-form-item>
+    </el-form>
 
-        <el-row :gutter="10" class="mb8">
-            <el-col :span="1.5">
-                <el-button
-                    type="warning"
-                    plain
-                    icon="el-icon-download"
-                    size="mini"
-                    @click="handleExport"
-                    v-hasPermi="['xycc:selection:export']"
-                >导出
-                </el-button>
-            </el-col>
-            <right-toolbar :showSearch.sync="showSearch"
-                           @queryTable="getList"></right-toolbar>
-        </el-row>
+    <el-table v-loading="loading" :data="rows" border stripe size="small">
+      <el-table-column type="index" :index="rowIndex" label="#" width="55" align="center" />
+      <el-table-column prop="studentName" label="学生" width="110" align="center" />
+      <el-table-column prop="studentNo" label="学号" width="130" align="center" />
+      <el-table-column prop="schoolName" label="学校" min-width="150" show-overflow-tooltip />
+      <el-table-column prop="departmentName" label="院系" min-width="140" show-overflow-tooltip />
+      <el-table-column prop="major" label="专业" min-width="120" show-overflow-tooltip />
+      <el-table-column prop="gender" label="性别" width="70" align="center" />
+      <el-table-column prop="patternComboCode" label="编码" width="80" align="center" />
+      <el-table-column prop="patternNames" label="选择图案" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="codeSummary" label="霍兰德类型" min-width="160" show-overflow-tooltip />
+      <el-table-column prop="careerTitles" label="职业方向" min-width="190" show-overflow-tooltip />
+      <el-table-column prop="envTitles" label="工作环境偏好" min-width="150" show-overflow-tooltip />
+      <el-table-column label="完成时间" width="155" align="center">
+        <template slot-scope="scope">{{ formatTime(scope.row.createdAt) }}</template>
+      </el-table-column>
+    </el-table>
 
-        <el-table v-loading="loading" :data="selectionList"
-                  @selection-change="handleSelectionChange">
-            <el-table-column type="selection" width="55" align="center"/>
-            <el-table-column label="编号" align="center"
-                             prop="userSelectionId"/>
-            <el-table-column label="学名" align="center" prop="userName"/>
-            <el-table-column label="姓名" align="center" prop="nickName"/>
-            <el-table-column label="编码组合" align="center"
-                             prop="patternComboCode"/>
-            <el-table-column label="职业方向" align="center" prop="careerTitles"
-                             :show-overflow-tooltip="true"/>
-            <el-table-column label="工作环境偏好" align="center"
-                             prop="envTitles" :show-overflow-tooltip="true"/>
-            <el-table-column label="选择时间" align="center" prop="createdAt"
-                             width="180"/>
-        </el-table>
-
-        <pagination
-            v-show="total>0"
-            :total="total"
-            :page.sync="queryParams.pageNum"
-            :limit.sync="queryParams.pageSize"
-            @pagination="getList"
-        />
-
-    </div>
+    <pagination v-show="total > 0" :total="total" :page.sync="query.pageNum" :limit.sync="query.pageSize" @pagination="getList" />
+    <el-empty v-if="!loading && !rows.length" description="暂无用户记录" />
+  </div>
 </template>
 
 <script>
-import {
-    listSelection,
-    getSelection,
-    delSelection,
-    addSelection,
-    updateSelection
-} from "@/api/xycc/selection"
+import { listSelectionRecords } from '@/api/xycc/selection'
+import { listSchool } from '@/api/school/school'
+import { listDepartment } from '@/api/school/department'
+import { listInstances } from '@/api/activity/week'
 
 export default {
-    name: "Selection",
-    data() {
-        return {
-            // 遮罩层
-            loading: true,
-            // 选中数组
-            ids: [],
-            // 非单个禁用
-            single: true,
-            // 非多个禁用
-            multiple: true,
-            // 显示搜索条件
-            showSearch: true,
-            // 总条数
-            total: 0,
-            // 用户记录表格数据
-            selectionList: [],
-            // 弹出层标题
-            title: "",
-            // 是否显示弹出层
-            open: false,
-            // 选择时间时间范围
-            daterangeCreatedAt: [],
-            // 查询参数
-            queryParams: {
-                pageNum: 1,
-                pageSize: 10,
-                userId: null,
-                userName: null,
-                patternComboCode: null,
-                careerTitles: null,
-                envTitles: null,
-                createdAt: null
-            },
-            // 表单参数
-            form: {},
-            // 表单校验
-            rules: {}
-        }
-    },
-    created() {
-        this.getList()
-    },
-    methods: {
-        /** 查询用户记录列表 */
-        getList() {
-            this.loading = true
-            this.queryParams.params = {}
-            if (null != this.daterangeCreatedAt && '' != this.daterangeCreatedAt) {
-                this.queryParams.params["beginCreatedAt"] = this.daterangeCreatedAt[0]
-                this.queryParams.params["endCreatedAt"] = this.daterangeCreatedAt[1]
-            }
-            listSelection(this.queryParams).then(response => {
-                this.selectionList = response.rows
-                this.total = response.total
-                this.loading = false
-            })
-        },
-
-        /** 搜索按钮操作 */
-        handleQuery() {
-            this.queryParams.pageNum = 1
-            this.getList()
-        },
-        /** 重置按钮操作 */
-        resetQuery() {
-            this.daterangeCreatedAt = []
-            this.resetForm("queryForm")
-            this.handleQuery()
-        },
-        // 多选框选中数据
-        handleSelectionChange(selection) {
-            this.ids = selection.map(item => item.userSelectionId)
-            this.single = selection.length !== 1
-            this.multiple = !selection.length
-        },
-        /** 导出按钮操作 */
-        handleExport() {
-            this.download('xycc/selection/export', {
-                ...this.queryParams
-            }, `心愿橱窗选择结果_${new Date().getTime()}.xlsx`)
-        }
+  name: 'Selection',
+  data() {
+    return {
+      loading: false,
+      total: 0,
+      rows: [],
+      dateRange: [],
+      schools: [],
+      departments: [],
+      activities: [],
+      query: {
+        pageNum: 1,
+        pageSize: 10,
+        schoolId: null,
+        instanceId: null,
+        departmentId: null,
+        major: null,
+        studentNo: null,
+        gender: null,
+        code: null,
+        startDate: null,
+        endDate: null
+      }
     }
+  },
+  created() {
+    this.loadOptions()
+    this.getList()
+  },
+  methods: {
+    loadOptions() {
+      listSchool({ pageNum: 1, pageSize: 1000 })
+        .then(res => {
+          this.schools = res.rows || res.data || []
+        })
+        .catch(() => {})
+      listInstances({})
+        .then(res => {
+          this.activities = res.data || res.rows || []
+        })
+        .catch(() => {})
+    },
+    schoolChanged(schoolId) {
+      this.query.departmentId = null
+      this.departments = []
+      if (!schoolId) return
+      listDepartment({ schoolId, pageNum: 1, pageSize: 1000 })
+        .then(res => {
+          if (this.query.schoolId === schoolId) {
+            this.departments = (res.rows || res.data || []).filter(item => Number(item.parentId || 0) === 0)
+          }
+        })
+        .catch(() => {})
+    },
+    getList() {
+      if (this.dateRange && this.dateRange.length === 2) {
+        this.query.startDate = this.dateRange[0]
+        this.query.endDate = this.dateRange[1]
+      } else {
+        this.query.startDate = null
+        this.query.endDate = null
+      }
+      if (this.query.startDate && this.query.endDate && this.query.startDate > this.query.endDate) {
+        return this.$modal.msgWarning('开始日期不能晚于结束日期')
+      }
+      this.loading = true
+      listSelectionRecords(this.query)
+        .then(res => {
+          const data = res.data || {}
+          this.rows = data.records || []
+          this.total = data.total || 0
+        })
+        .catch(() => this.$modal.msgError('用户记录加载失败，请稍后重试'))
+        .finally(() => {
+          this.loading = false
+        })
+    },
+    handleQuery() {
+      this.query.pageNum = 1
+      this.getList()
+    },
+    resetQuery() {
+      this.dateRange = []
+      this.query = {
+        pageNum: 1,
+        pageSize: this.query.pageSize,
+        schoolId: null,
+        instanceId: null,
+        departmentId: null,
+        major: null,
+        studentNo: null,
+        gender: null,
+        code: null,
+        startDate: null,
+        endDate: null
+      }
+      this.departments = []
+      this.getList()
+    },
+    rowIndex(index) {
+      return (this.query.pageNum - 1) * this.query.pageSize + index + 1
+    },
+    formatTime(value) {
+      if (!value) return '-'
+      const date = new Date(value)
+      if (isNaN(date.getTime())) return String(value)
+      const pad = n => (n < 10 ? '0' + n : '' + n)
+      return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes())
+    }
+  }
 }
 </script>
