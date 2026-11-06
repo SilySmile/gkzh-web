@@ -7,9 +7,7 @@
         </el-select>
       </el-form-item>
       <el-form-item label="活动" prop="instanceId">
-        <el-select v-model="query.instanceId" clearable filterable placeholder="全部活动">
-          <el-option v-for="item in activities" :key="item.instanceId" :label="item.title || item.name" :value="item.instanceId" />
-        </el-select>
+        <school-activity-select v-model="query.instanceId" :school-id="query.schoolId" />
       </el-form-item>
       <el-form-item label="院系" prop="departmentId">
         <el-select v-model="query.departmentId" clearable filterable placeholder="全部院系">

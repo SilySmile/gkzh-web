@@ -19,24 +19,26 @@ import './permission' // permission control
 import { getDicts } from "@/api/system/dict/data"
 import { getConfigKey } from "@/api/system/config"
 import { parseTime, resetForm, addDateRange, selectDictLabel, selectDictLabels, handleTree } from "@/utils/gkzh"
-// 分页组件
+// 鍒嗛〉缁勪欢
 import Pagination from "@/components/Pagination"
-// 自定义表格工具组件
+// 鑷畾涔夎〃鏍煎伐鍏风粍浠?
 import RightToolbar from "@/components/RightToolbar"
-// 富文本组件
+// 瀵屾枃鏈粍浠?
 import Editor from "@/components/Editor"
-// 文件上传组件
+// 鏂囦欢涓婁紶缁勪欢
 import FileUpload from "@/components/FileUpload"
-// 图片上传组件
+// 鍥剧墖涓婁紶缁勪欢
 import ImageUpload from "@/components/ImageUpload"
-// 图片预览组件
+// 鍥剧墖棰勮缁勪欢
 import ImagePreview from "@/components/ImagePreview"
-// 字典标签组件
+// 瀛楀吀鏍囩缁勪欢
 import DictTag from '@/components/DictTag'
-// 字典数据组件
+// 瀛楀吀鏁版嵁缁勪欢
 import DictData from '@/components/DictData'
+// 学校-活动联动下拉
+import SchoolActivitySelect from '@/components/SchoolActivitySelect'
 
-// 全局方法挂载
+// 鍏ㄥ眬鏂规硶鎸傝浇
 Vue.prototype.getDicts = getDicts
 Vue.prototype.getConfigKey = getConfigKey
 Vue.prototype.parseTime = parseTime
@@ -47,7 +49,7 @@ Vue.prototype.selectDictLabels = selectDictLabels
 Vue.prototype.download = download
 Vue.prototype.handleTree = handleTree
 
-// 全局组件挂载
+// 鍏ㄥ眬缁勪欢鎸傝浇
 Vue.component('DictTag', DictTag)
 Vue.component('Pagination', Pagination)
 Vue.component('RightToolbar', RightToolbar)
@@ -55,6 +57,7 @@ Vue.component('Editor', Editor)
 Vue.component('FileUpload', FileUpload)
 Vue.component('ImageUpload', ImageUpload)
 Vue.component('ImagePreview', ImagePreview)
+Vue.component('SchoolActivitySelect', SchoolActivitySelect)
 
 Vue.use(directive)
 Vue.use(plugins)
