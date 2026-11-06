@@ -4,7 +4,7 @@
     <el-card v-if="view" class="view-card">
       <div slot="header" class="card-header">
         <span>{{ view.gameTitle }}</span>
-        <el-button v-if="['mind-window', 'sszctop', 'zycck', 'zyjdc', 'nlld', 'zyfxq'].includes(view.viewType)" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
+        <el-button v-if="['mind-window', 'sszctop', 'zycck', 'zyjdc', 'nlld', 'zyfxq', 'jlcz'].includes(view.viewType)" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
       </div>
 
       <template v-if="view.viewType === 'mind-window'">
@@ -282,6 +282,85 @@
           </el-tab-pane>
         </el-tabs>
       </template>
+      <template v-else-if="view.viewType === 'jlcz'">
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="第一页：整体参与情况" name="overview">
+            <div class="summary-line">
+              参与总人数：<b>{{ jlczSummary.participantCount || 0 }}</b> 人
+              <span class="summary-separator">完成称重：<b>{{ jlczSummary.finishedCount || 0 }}</b> 人</span>
+              <span class="summary-separator">通关人数：<b>{{ jlczSummary.passCount || 0 }}</b> 人</span>
+              <span class="summary-separator">通关率：<b>{{ jlczSummary.passRate || 0 }}%</b></span>
+              <span class="summary-separator">平均简历分量：<b>{{ jlczSummary.avgTotalWeight || 0 }}g</b></span>
+              <span class="summary-separator">平均勾选：<b>{{ jlczSummary.avgSelectedCount || 0 }}</b> 项</span>
+              <span class="summary-separator">平均用时：<b>{{ jlczSummary.avgDurationSeconds || 0 }}</b> 秒</span>
+            </div>
+            <el-table :data="view.records || []" border stripe>
+              <el-table-column prop="studentName" label="学生" width="110" />
+              <el-table-column prop="studentNo" label="学号" width="130" />
+              <el-table-column prop="schoolName" label="学校" min-width="150" />
+              <el-table-column prop="departmentName" label="院系" min-width="150" />
+              <el-table-column prop="major" label="专业" min-width="120" />
+              <el-table-column label="总重量" width="100" align="center">
+                <template slot-scope="scope">
+                  {{ scope.row.status === 'finished' ? scope.row.totalWeight + 'g' : '-' }}
+                </template>
+              </el-table-column>
+              <el-table-column label="结果" width="100" align="center">
+                <template slot-scope="scope">
+                  <el-tag v-if="scope.row.status !== 'finished'" type="info" size="mini">进行中</el-tag>
+                  <el-tag v-else-if="scope.row.result === 'pass'" type="success" size="mini">通关</el-tag>
+                  <el-tag v-else type="danger" size="mini">未通关</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="selectedCount" label="勾选数" width="90" align="center" />
+              <el-table-column prop="attemptNo" label="次数" width="80" align="center" />
+              <el-table-column label="提交时间" width="160" align="center">
+                <template slot-scope="scope">{{ formatTime(scope.row.finishTime) }}</template>
+              </el-table-column>
+            </el-table>
+            <el-alert v-if="view.records && view.records.length" :title="'仅展示最近 ' + view.records.length + ' 条记录，完整数据请在“参与记录”或 Excel 中查看。'" type="info" :closable="false" style="margin-top: 12px" />
+            <el-empty v-if="!(view.records || []).length" description="暂无参与记录" />
+          </el-tab-pane>
+          <el-tab-pane label="第二页：砝码选择率与缺口" name="weights">
+            <el-table :data="view.categoryStats || []" border stripe>
+              <el-table-column prop="categoryName" label="大类" min-width="200" />
+              <el-table-column prop="weightCount" label="砝码数" width="100" align="center" />
+              <el-table-column prop="availableWeight" label="可获重量" width="110" align="center">
+                <template slot-scope="scope">{{ scope.row.availableWeight }}g</template>
+              </el-table-column>
+              <el-table-column prop="selectedCount" label="被选次数" width="100" align="center" />
+              <el-table-column prop="avgWeightPerParticipant" label="人均获得" width="110" align="center">
+                <template slot-scope="scope">{{ scope.row.avgWeightPerParticipant }}g</template>
+              </el-table-column>
+              <el-table-column label="类别选择率" width="120" align="center">
+                <template slot-scope="scope">{{ scope.row.selectionRate }}%</template>
+              </el-table-column>
+            </el-table>
+            <el-table :data="view.weightStats || []" border stripe style="margin-top: 16px" max-height="420">
+              <el-table-column prop="weightNo" label="编号" width="70" align="center" />
+              <el-table-column label="砝码" min-width="150">
+                <template slot-scope="scope">{{ scope.row.icon }} {{ scope.row.label }}</template>
+              </el-table-column>
+              <el-table-column prop="categoryName" label="类别" min-width="180" show-overflow-tooltip />
+              <el-table-column prop="weightG" label="重量" width="90" align="center">
+                <template slot-scope="scope">{{ scope.row.weightG }}g</template>
+              </el-table-column>
+              <el-table-column prop="selectedCount" label="勾选人数" width="100" align="center" />
+              <el-table-column label="选择率" width="110" align="center">
+                <template slot-scope="scope">{{ scope.row.selectedRate }}%</template>
+              </el-table-column>
+              <el-table-column prop="gapCount" label="未勾选人数" width="110" align="center" />
+            </el-table>
+            <div class="summary-line" style="margin-top: 16px">
+              总重区间分布：
+              <span v-for="item in view.distribution || []" :key="item.bucket" class="summary-separator">
+                {{ item.label }} <b>{{ item.count }}</b> 人
+              </span>
+            </div>
+            <div class="analysis-text">{{ view.analysis || '暂无分析结果' }}</div>
+          </el-tab-pane>
+        </el-tabs>
+      </template>
       <el-empty v-else :description="view.message || '该游戏暂未配置查看模板'" />
     </el-card>
   </div>
@@ -303,7 +382,8 @@ export default {
     zycckCompletionRate() { const value = this.view && this.view.completionRate != null ? this.view.completionRate : (this.zycckEnteredCount ? Math.round(this.zycckFinishedCount * 10000 / this.zycckEnteredCount) / 100 : 0); return value + '%' },
     zyjdcSummary() { return (this.view && this.view.summary) || {} },
     nlldSummary() { return (this.view && this.view.summary) || {} },
-    zyfxqSummary() { return (this.view && this.view.summary) || {} }
+    zyfxqSummary() { return (this.view && this.view.summary) || {} },
+    jlczSummary() { return (this.view && this.view.summary) || {} }
   },
   created() { this.loadView() },
   methods: {
@@ -312,7 +392,7 @@ export default {
       getGameView(this.$route.params.gameId).then(res => {
         this.view = res.data
         const type = res.data && res.data.viewType
-        this.activeTab = type === 'sszctop' ? 'dimensions' : (type === 'zycck' || type === 'zyjdc' || type === 'nlld' || type === 'zyfxq' ? 'overview' : 'types')
+        this.activeTab = type === 'sszctop' ? 'dimensions' : (type === 'zycck' || type === 'zyjdc' || type === 'nlld' || type === 'zyfxq' || type === 'jlcz' ? 'overview' : 'types')
       }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.loading = false })
     },
     formatTime(value) {
