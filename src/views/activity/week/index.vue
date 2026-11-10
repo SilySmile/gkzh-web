@@ -62,6 +62,7 @@
             <span>区域与游戏</span>
             <el-tag v-if="currentSchool" size="small" type="info" style="margin-left: 12px">{{ currentSchool.title }}</el-tag>
             <el-button size="mini" type="warning" :disabled="!selectedInstanceId || isEndedInstance()" @click="openSchoolConfigDialog">学校抽奖门槛</el-button>
+            <el-button size="mini" type="primary" plain icon="el-icon-download" :disabled="!selectedInstanceId || !gameCount" :loading="qrZipLoading" title="按游戏名称命名，打包下载当前活动下全部游戏二维码" @click="downloadAllQrCodes">下载全部二维码</el-button>
             <el-button style="float: right" type="success" size="mini" icon="el-icon-plus" :disabled="!selectedInstanceId || isEndedInstance()" @click="openAreaDialog">新增区域</el-button>
           </div>
 
@@ -234,6 +235,7 @@ import {
 } from '@/api/activity/week'
 import { listSchool } from '@/api/school/school'
 import { listActivity } from '@/api/lottery/activity'
+import { downloadGet } from '@/utils/request'
 
 export default {
   name: 'ActivityWeek',
@@ -265,6 +267,8 @@ export default {
       qrDialogVisible: false,
       qrTitle: '',
       qrUrl: '',
+      /** 一键下载全部二维码时的按钮加载状态 */
+      qrZipLoading: false,
       currentGameId: null,
       hasActiveInstance: false,
       instanceSaving: false,
@@ -284,6 +288,13 @@ export default {
   computed: {
     currentSchool() {
       return this.schoolList.find(school => school.schoolId === this.selectedSchoolId) || null
+    },
+    /** 当前活动下已配置的游戏数量，用于控制“下载全部二维码”按钮是否可用 */
+    gameCount() {
+      return Object.keys(this.gamesByArea).reduce(
+        (total, areaId) => total + ((this.gamesByArea[areaId] || []).length),
+        0
+      )
     },
     startDateOptions() {
       const today = new Date()
@@ -684,6 +695,30 @@ export default {
 
     viewGame(game) {
       this.$router.push({ path: '/activity/week/game-view/' + game.gameId })
+    },
+    /**
+     * 一键下载当前活动下全部游戏二维码：服务端按学校与活动实例打包 ZIP，
+     * 压缩包内 PNG 与后台“游戏名称”一一对应，重名游戏由服务端追加区域名或序号。
+     */
+    downloadAllQrCodes() {
+      if (!this.selectedInstanceId) {
+        this.$message.warning('请先选择活动')
+        return
+      }
+      if (!this.gameCount) {
+        this.$message.warning('当前活动下还没有配置游戏')
+        return
+      }
+      const instance = this.instances.find(item => item.instanceId === this.selectedInstanceId)
+      const instanceTitle = instance && instance.title ? instance.title : '活动'
+      this.qrZipLoading = true
+      downloadGet(
+        '/activity/week/game/qrcode/zip/' + this.selectedInstanceId,
+        { schoolId: this.selectedSchoolId },
+        instanceTitle + '-游戏二维码.zip'
+      ).finally(() => {
+        this.qrZipLoading = false
+      })
     },
     regenerateQr() {
       if (!this.currentGameId) return

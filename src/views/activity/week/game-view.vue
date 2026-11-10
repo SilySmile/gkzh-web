@@ -4,7 +4,7 @@
     <el-card v-if="view" class="view-card">
       <div slot="header" class="card-header">
         <span>{{ view.gameTitle }}</span>
-        <el-button v-if="['mind-window', 'sszctop', 'zycck', 'zyjdc', 'nlld', 'zyfxq', 'jlcz', 'zmwl'].includes(view.viewType)" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
+        <el-button v-if="['mind-window', 'sszctop', 'zycck', 'zyjdc', 'nlld', 'zyfxq', 'jlcz', 'zmwl', 'zytj', 'zdyp'].includes(view.viewType)" type="primary" size="small" icon="el-icon-download" @click="exportPdf">导出 PDF</el-button>
       </div>
 
       <template v-if="view.viewType === 'mind-window'">
@@ -433,6 +433,154 @@
           </el-tab-pane>
         </el-tabs>
       </template>
+      <template v-else-if="view.viewType === 'zdyp'">
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="第一页：整体参与情况" name="overview">
+            <div class="summary-line">
+              扫码参与：<b>{{ zdypSummary.participantCount || 0 }}</b> 人
+              <span class="summary-separator">通关：<b>{{ zdypSummary.finishedCount || 0 }}</b> 人</span>
+              <span class="summary-separator">通关率：<b>{{ zdypSummary.finishRate || 0 }}%</b></span>
+              <span class="summary-separator">首次即通关：<b>{{ zdypSummary.firstPassCount || 0 }}</b> 人（{{ zdypSummary.firstPassRate || 0 }}%）</span>
+              <span class="summary-separator">平均闯关次数：<b>{{ zdypSummary.avgAttempts || 0 }}</b> 次</span>
+              <span class="summary-separator">超时人数：<b>{{ zdypSummary.timeoutPlayers || 0 }}</b> 人</span>
+              <span class="summary-separator">平均首次用时：<b>{{ zdypSummary.avgFirstSeconds || 0 }}</b> 秒</span>
+            </div>
+            <el-table :data="view.records || []" border stripe>
+              <el-table-column prop="studentName" label="学生" width="110" />
+              <el-table-column prop="studentNo" label="学号" width="130" />
+              <el-table-column prop="schoolName" label="学校" min-width="150" />
+              <el-table-column prop="departmentName" label="院系" min-width="150" />
+              <el-table-column prop="major" label="专业" min-width="120" />
+              <el-table-column label="岗位" min-width="170">
+                <template slot-scope="scope">{{ scope.row.careerName || '未开始' }}</template>
+              </el-table-column>
+              <el-table-column prop="attemptNo" label="闯关次数" width="90" align="center" />
+              <el-table-column prop="totalWrong" label="累计错误" width="90" align="center" />
+              <el-table-column label="行为分型" width="120" align="center">
+                <template slot-scope="scope">{{ scope.row.behaviorName || '-' }}</template>
+              </el-table-column>
+              <el-table-column label="状态" width="90" align="center">
+                <template slot-scope="scope">
+                  <el-tag v-if="scope.row.status === 'finished'" type="success" size="mini">已通关</el-tag>
+                  <el-tag v-else type="info" size="mini">进行中</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="通关时间" width="160" align="center">
+                <template slot-scope="scope">{{ formatTime(scope.row.finishTime) }}</template>
+              </el-table-column>
+            </el-table>
+            <el-alert v-if="view.records && view.records.length" :title="'仅展示最近 ' + view.records.length + ' 条记录，完整数据请在“参与记录”或 Excel 中查看。'" type="info" :closable="false" style="margin-top: 12px" />
+            <el-empty v-if="!(view.records || []).length" description="暂无参与记录" />
+          </el-tab-pane>
+          <el-tab-pane label="第二页：分型与维度分析" name="analysis">
+            <div class="summary-line">四类职业认知分型（以已通关人数为分母）</div>
+            <el-table :data="view.behaviorStats || []" border stripe>
+              <el-table-column prop="behaviorName" label="行为分型" min-width="130" />
+              <el-table-column prop="playerCount" label="人数" width="100" align="center" />
+              <el-table-column label="占比" width="110" align="center">
+                <template slot-scope="scope">{{ scope.row.rate }}%</template>
+              </el-table-column>
+            </el-table>
+            <div class="summary-line" style="margin-top: 16px">首次尝试各维度错误（重点看“职业缺点”）</div>
+            <el-table :data="view.slotStats || []" border stripe>
+              <el-table-column prop="slotName" label="卡槽" min-width="120" />
+              <el-table-column prop="correctCount" label="放对" width="90" align="center" />
+              <el-table-column prop="wrongCount" label="放错" width="90" align="center" />
+              <el-table-column label="首次正确率" width="120" align="center">
+                <template slot-scope="scope">{{ scope.row.correctRate }}%</template>
+              </el-table-column>
+              <el-table-column prop="unfilledCount" label="未填写" width="100" align="center" />
+            </el-table>
+            <div class="summary-line" style="margin-top: 16px">首填卡槽偏好</div>
+            <el-table :data="view.firstSlotStats || []" border stripe>
+              <el-table-column prop="slotName" label="首选卡槽" min-width="120" />
+              <el-table-column prop="playerCount" label="人数" width="100" align="center" />
+              <el-table-column label="占比" width="110" align="center">
+                <template slot-scope="scope">{{ scope.row.rate }}%</template>
+              </el-table-column>
+            </el-table>
+            <div class="summary-line" style="margin-top: 16px">岗位选择分布</div>
+            <el-table :data="view.careerStats || []" border stripe max-height="300">
+              <el-table-column prop="careerName" label="岗位" min-width="190" />
+              <el-table-column prop="selectedCount" label="选择人数" width="100" align="center" />
+              <el-table-column prop="finishedCount" label="通关人数" width="100" align="center" />
+              <el-table-column label="通关率" width="100" align="center">
+                <template slot-scope="scope">{{ scope.row.finishRate }}%</template>
+              </el-table-column>
+            </el-table>
+            <div class="summary-line" style="margin-top: 16px">院系分布</div>
+            <el-table :data="view.departmentStats || []" border stripe max-height="300">
+              <el-table-column prop="departmentName" label="院系" min-width="170" show-overflow-tooltip />
+              <el-table-column prop="participantCount" label="参与" width="90" align="center" />
+              <el-table-column prop="finishedCount" label="通关" width="90" align="center" />
+              <el-table-column label="通关率" width="100" align="center">
+                <template slot-scope="scope">{{ scope.row.finishRate }}%</template>
+              </el-table-column>
+            </el-table>
+            <div class="analysis-text">{{ view.analysis || '暂无分析结果' }}</div>
+          </el-tab-pane>
+        </el-tabs>
+      </template>
+      <template v-else-if="view.viewType === 'zytj'">
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="第一页：人格类型整体数据" name="overview">
+            <div class="summary-line">
+              扫码参与：<b>{{ zytjSummary.participantCount || 0 }}</b> 人
+              <span class="summary-separator">已生成探索卡：<b>{{ zytjSummary.finishedCount || 0 }}</b> 人</span>
+              <span class="summary-separator">完成率：<b>{{ zytjSummary.finishRate || 0 }}%</b></span>
+              <span class="summary-separator">超时自动提交：<b>{{ zytjSummary.timeoutCount || 0 }}</b> 人</span>
+              <span class="summary-separator">出现型别：<b>{{ zytjSummary.typeCount || 0 }}</b> 种</span>
+              <span class="summary-separator">平均用时：<b>{{ zytjSummary.avgDurationSeconds || 0 }}</b> 秒</span>
+            </div>
+            <div class="summary-line" style="margin-top: 8px">
+              占比最高：<b>{{ zytjSummary.topTypeCode || '-' }}</b>
+              <span v-if="zytjSummary.topTypeCount">（{{ zytjSummary.topTypeCount }} 人，{{ zytjSummary.topTypeRate }}%）</span>
+              <span class="summary-separator">{{ zytjSummary.topTypeFeature || '' }}</span>
+            </div>
+            <el-table :data="view.typeStats || []" border stripe max-height="420" style="margin-top: 12px">
+              <el-table-column prop="typeCode" label="人格类型" width="100" align="center" />
+              <el-table-column prop="selectedCount" label="人数" width="80" align="center" />
+              <el-table-column label="占比" width="100" align="center">
+                <template slot-scope="scope">{{ scope.row.rate }}%</template>
+              </el-table-column>
+              <el-table-column prop="feature" label="性格特点" min-width="220" show-overflow-tooltip />
+              <el-table-column prop="careerField" label="适合职业领域" min-width="180" show-overflow-tooltip />
+              <el-table-column prop="typicalCareers" label="典型职业" min-width="220" show-overflow-tooltip />
+            </el-table>
+            <div class="summary-line" style="margin-top: 16px">四个维度倾向</div>
+            <el-table :data="view.dimensions || []" border stripe max-height="320">
+              <el-table-column label="维度" width="150" align="center">
+                <template slot-scope="scope">{{ zytjDimensionText(scope.row.dimensionCode) }}</template>
+              </el-table-column>
+              <el-table-column prop="letter" label="字母" width="70" align="center" />
+              <el-table-column prop="itemName" label="代表物品" min-width="150" align="center" />
+              <el-table-column prop="selectedCount" label="人数" width="90" align="center" />
+              <el-table-column label="占比" width="100" align="center">
+                <template slot-scope="scope">{{ scope.row.rate }}%</template>
+              </el-table-column>
+            </el-table>
+          </el-tab-pane>
+          <el-tab-pane label="第二页：各人格类型解读" name="types">
+            <el-table :data="view.typeStats || []" border stripe max-height="520">
+              <el-table-column prop="typeCode" label="人格类型" width="100" align="center" />
+              <el-table-column prop="selectedCount" label="人数" width="80" align="center" />
+              <el-table-column prop="feature" label="性格特点" min-width="240" />
+              <el-table-column prop="careerField" label="适合职业领域" min-width="200" />
+              <el-table-column prop="typicalCareers" label="典型职业" min-width="240" />
+            </el-table>
+            <div class="summary-line" style="margin-top: 16px">院系分布</div>
+            <el-table :data="view.departments || []" border stripe max-height="320">
+              <el-table-column prop="departmentName" label="院系" min-width="180" show-overflow-tooltip />
+              <el-table-column prop="participantCount" label="参与人数" width="100" align="center" />
+              <el-table-column prop="finishedCount" label="已提交人数" width="110" align="center" />
+              <el-table-column label="参与占比" width="110" align="center">
+                <template slot-scope="scope">{{ scope.row.rate }}%</template>
+              </el-table-column>
+            </el-table>
+            <div class="analysis-text">{{ view.analysis || '暂无分析结果' }}</div>
+          </el-tab-pane>
+        </el-tabs>
+      </template>
       <el-empty v-else :description="view.message || '该游戏暂未配置查看模板'" />
     </el-card>
   </div>
@@ -456,7 +604,9 @@ export default {
     nlldSummary() { return (this.view && this.view.summary) || {} },
     zyfxqSummary() { return (this.view && this.view.summary) || {} },
     jlczSummary() { return (this.view && this.view.summary) || {} },
-    zmwlSummary() { return (this.view && this.view.summary) || {} }
+    zmwlSummary() { return (this.view && this.view.summary) || {} },
+    zdypSummary() { return (this.view && this.view.summary) || {} },
+    zytjSummary() { return (this.view && this.view.summary) || {} }
   },
   created() { this.loadView() },
   methods: {
@@ -465,8 +615,13 @@ export default {
       getGameView(this.$route.params.gameId).then(res => {
         this.view = res.data
         const type = res.data && res.data.viewType
-        this.activeTab = type === 'sszctop' ? 'dimensions' : (type === 'zycck' || type === 'zyjdc' || type === 'nlld' || type === 'zyfxq' || type === 'jlcz' || type === 'zmwl' ? 'overview' : 'types')
+        this.activeTab = type === 'sszctop' ? 'dimensions' : (type === 'zycck' || type === 'zyjdc' || type === 'nlld' || type === 'zyfxq' || type === 'jlcz' || type === 'zmwl' || type === 'zytj' || type === 'zdyp' ? 'overview' : 'types')
       }).catch(error => this.$modal.msgError(zycckErrorMessage(error))).finally(() => { this.loading = false })
+    },
+    /** 四个维度的中文名，与后台配置页保持一致。 */
+    zytjDimensionText(code) {
+      const map = { EI: '外向 / 内向', SN: '实感 / 直觉', TF: '思考 / 情感', JP: '判断 / 感知' }
+      return map[code] || code || '-'
     },
     formatTime(value) {
       if (!value) return '-'
