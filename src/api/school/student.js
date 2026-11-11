@@ -50,3 +50,20 @@ export function delStudent(studentId) {
     method: 'delete'
   })
 }
+
+// 读取小程序注册校验开关（年级/学历/毕业时间）
+export function getRegisterCheck() {
+  return request({
+    url: '/school/student/register-check',
+    method: 'get'
+  })
+}
+
+// 保存小程序注册校验开关
+export function saveRegisterCheck(requireProfile) {
+  return request({
+    url: '/school/student/register-check',
+    method: 'put',
+    data: { requireProfile }
+  })
+}

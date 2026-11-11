@@ -171,6 +171,22 @@
                            @queryTable="getList"></right-toolbar>
         </el-row>
 
+        <!-- 小程序注册校验开关：关闭时未升级的小程序旧版本可不填年级/学历/毕业时间 -->
+        <div class="register-check-bar">
+            <span class="register-check-title">小程序注册校验</span>
+            <span class="register-check-fields">年级 / 学历 / 毕业时间</span>
+            <el-switch
+                v-model="registerCheck"
+                :loading="registerCheckSaving"
+                active-text="必填"
+                inactive-text="不校验"
+                @change="handleRegisterCheckChange"
+            ></el-switch>
+            <span class="register-check-tip">
+                关闭后旧版小程序无需填写这三项即可注册；开启后注册时缺任一项会被拒绝。
+            </span>
+        </div>
+
         <el-table v-loading="loading" :data="studentList"
                   @selection-change="handleSelectionChange">
             <el-table-column type="selection" width="55" align="center"/>
@@ -419,7 +435,9 @@ import {
     delStudent,
     addStudent,
     updateStudent,
-    resetStudentPassword
+    resetStudentPassword,
+    getRegisterCheck,
+    saveRegisterCheck
 } from "@/api/school/student";
 import {listSchool} from "@/api/school/school";
 import {getToken} from "@/utils/auth"
@@ -441,6 +459,9 @@ export default {
             multiple: true,
             // 显示搜索条件
             showSearch: true,
+            // 小程序注册是否强制校验年级/学历/毕业时间
+            registerCheck: false,
+            registerCheckSaving: false,
             // 总条数
             total: 0,
             // 学生表格数据
@@ -525,8 +546,29 @@ export default {
     created() {
         this.getList();
         this.getSchoolOptions();
+        this.loadRegisterCheck();
     },
     methods: {
+        /** 读取注册校验开关，未配置时按不校验展示 */
+        loadRegisterCheck() {
+            getRegisterCheck().then(response => {
+                this.registerCheck = response.requireProfile === true;
+            }).catch(() => {
+                this.registerCheck = false;
+            });
+        },
+        /** 保存注册校验开关，失败时回滚显示 */
+        handleRegisterCheckChange(value) {
+            this.registerCheckSaving = true;
+            saveRegisterCheck(value).then(() => {
+                this.$modal.msgSuccess(value ? '已开启：注册必须填写年级、学历、毕业时间' : '已关闭：注册不再校验这三项');
+            }).catch(() => {
+                this.registerCheck = !value;
+                this.$modal.msgError('保存失败，请稍后重试');
+            }).finally(() => {
+                this.registerCheckSaving = false;
+            });
+        },
         /** 查询学生列表 */
         getList() {
             this.loading = true;
@@ -907,3 +949,28 @@ export default {
     }
 };
 </script>
+
+<style scoped>
+.register-check-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    background: #f4f8ff;
+    border: 1px solid #d9e6fb;
+    border-radius: 4px;
+}
+.register-check-title {
+    font-weight: 600;
+    color: #24456f;
+}
+.register-check-fields {
+    color: #33475f;
+}
+.register-check-tip {
+    color: #8a97a8;
+    font-size: 12px;
+}
+</style>
