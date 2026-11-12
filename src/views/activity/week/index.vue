@@ -63,13 +63,14 @@
             <el-tag v-if="currentSchool" size="small" type="info" style="margin-left: 12px">{{ currentSchool.title }}</el-tag>
             <el-button size="mini" type="warning" :disabled="!selectedInstanceId || isEndedInstance()" @click="openSchoolConfigDialog">学校抽奖门槛</el-button>
             <el-button size="mini" type="primary" plain icon="el-icon-download" :disabled="!selectedInstanceId || !gameCount" :loading="qrZipLoading" title="按游戏名称命名，打包下载当前活动下全部游戏二维码" @click="downloadAllQrCodes">下载全部二维码</el-button>
-            <el-button style="float: right" type="success" size="mini" icon="el-icon-plus" :disabled="!selectedInstanceId || isEndedInstance()" @click="openAreaDialog">新增区域</el-button>
+            <el-button style="float: right" type="success" size="mini" icon="el-icon-plus" :disabled="!selectedInstanceId || isEndedInstance()" @click="openAreaDialog()">新增区域</el-button>
           </div>
 
           <div v-for="area in areas" :key="area.areaId" class="area-card">
             <div class="area-head">
               <span>{{ area.title }} <el-tag v-if="schoolNameMap[area.schoolId]" size="mini">{{ schoolNameMap[area.schoolId] }}</el-tag></span>
               <span>
+                <el-button type="text" size="mini" :disabled="isEndedInstance()" @click="openAreaDialog(area)">编辑</el-button>
                 <el-button type="text" size="mini" :disabled="isEndedInstance()" @click="openGameDialog(area)">新增游戏</el-button>
                 <el-button type="text" size="mini" :disabled="isEndedInstance()" @click="removeArea(area)">删除</el-button>
               </span>
@@ -594,13 +595,29 @@ export default {
         this.instanceSaving = false
       })
     },
-    openAreaDialog() {
-      this.areaDialogTitle = '新增区域'
-      this.areaForm = {
-        instanceId: this.selectedInstanceId,
-        title: '',
-        schoolId: this.selectedSchoolId || null,
-        sortOrder: this.areas.length + 1
+    /**
+     * 打开区域弹窗：传 area 时为编辑区域名称与顺序，不传时为新增。
+     * 编辑沿用一个已有区域记录，游戏归属与历史数据不变。
+     */
+    openAreaDialog(area) {
+      // 「新增区域」按钮不带参数调用；带 areaId 的才是编辑，避免把点击事件当成区域对象。
+      if (area && area.areaId) {
+        this.areaDialogTitle = '编辑区域'
+        this.areaForm = {
+          areaId: area.areaId,
+          instanceId: area.instanceId || this.selectedInstanceId,
+          title: area.title,
+          schoolId: area.schoolId,
+          sortOrder: area.sortOrder
+        }
+      } else {
+        this.areaDialogTitle = '新增区域'
+        this.areaForm = {
+          instanceId: this.selectedInstanceId,
+          title: '',
+          schoolId: this.selectedSchoolId || null,
+          sortOrder: this.areas.length + 1
+        }
       }
       this.areaDialogVisible = true
     },
@@ -609,8 +626,14 @@ export default {
         this.$message.warning('请选择所属学校')
         return
       }
+      if (!this.areaForm.title || !String(this.areaForm.title).trim()) {
+        this.$message.warning('请填写区域名称')
+        return
+      }
+      const editing = !!(this.areaForm && this.areaForm.areaId)
+      this.areaForm.title = String(this.areaForm.title).trim()
       saveArea(this.areaForm).then(() => {
-        this.$message.success('保存成功')
+        this.$message.success(editing ? '区域已更新' : '保存成功')
         this.areaDialogVisible = false
         this.loadAreas()
       })
