@@ -167,6 +167,17 @@
                 >导出
                 </el-button>
             </el-col>
+            <el-col :span="1.5">
+                <el-button
+                    type="danger"
+                    plain
+                    icon="el-icon-key"
+                    size="mini"
+                    @click="handleResetPasswordBatch"
+                    v-hasPermi="['school:student:edit']"
+                >批量重置密码
+                </el-button>
+            </el-col>
             <right-toolbar :showSearch.sync="showSearch"
                            @queryTable="getList"></right-toolbar>
         </el-row>
@@ -436,6 +447,7 @@ import {
     addStudent,
     updateStudent,
     resetStudentPassword,
+    resetStudentPasswordBatch,
     getRegisterCheck,
     saveRegisterCheck
 } from "@/api/school/student";
@@ -897,6 +909,29 @@ export default {
                 this.$modal.msgSuccess("密码已重置为 123456");
                 this.getList();
             }).catch(() => {});
+        },
+        /** 批量重置：作用于当前筛选条件命中的全部学生，未注册的由服务端自动跳过 */
+        handleResetPasswordBatch() {
+            this.$modal.confirm('将把当前筛选条件下的已注册学生登录密码全部重置为 123456（未注册学生自动跳过），是否继续？').then(() => {
+                return resetStudentPasswordBatch(this.buildResetQuery());
+            }).then((res) => {
+                const count = (res && res.data) || 0;
+                if (count > 0) {
+                    this.$modal.msgSuccess('已重置 ' + count + ' 名学生的密码为 123456');
+                } else {
+                    this.$modal.msgWarning('当前筛选条件下没有已注册的学生，未做任何修改');
+                }
+                this.getList();
+            }).catch(() => {});
+        },
+        /** 只带筛选条件，不带分页参数 */
+        buildResetQuery() {
+            const query = Object.assign({}, this.queryParams);
+            delete query.pageNum;
+            delete query.pageSize;
+            delete query.orderByColumn;
+            delete query.isAsc;
+            return query;
         },
         /** 导出按钮操作 */
         handleExport() {

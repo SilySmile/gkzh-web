@@ -43,6 +43,15 @@ export function resetStudentPassword(studentId) {
   })
 }
 
+// 按当前筛选条件批量重置已注册学生的登录密码为 123456
+export function resetStudentPasswordBatch(query) {
+  return request({
+    url: '/school/student/reset-password/batch',
+    method: 'put',
+    params: query
+  })
+}
+
 // 删除学生
 export function delStudent(studentId) {
   return request({
