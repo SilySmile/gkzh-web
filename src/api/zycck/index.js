@@ -175,4 +175,22 @@ export function zycckErrorMessage(error) {
   return errorMessages.default
 }
 
+export function getAnalysisReportConfig({ schoolId, instanceId }) {
+  return request({ url: '/zycck/admin/statistics/analysis-report/config', method: 'get', params: { schoolId, instanceId } })
+}
+
+export function exportAnalysisReport(data) {
+  return request({ url: '/zycck/admin/statistics/analysis-report', method: 'post', data, responseType: 'blob', timeout: 300000 }).then(async data => {
+    const blob = data instanceof Blob ? data : new Blob([data])
+    const prefix = new Uint8Array(await blob.slice(0, 4).arrayBuffer())
+    if (prefix[0] === 0x50 && prefix[1] === 0x4b && prefix[2] === 0x03 && prefix[3] === 0x04) return blob
+    let message = '报告生成失败，请稍后重试'
+    try {
+      const payload = JSON.parse(await blob.text())
+      if (/^(请|所选|各院系|院系|目标|小样本|现场照片|参与数据|图片|报告图片|报告模板)/.test(payload.msg || '') && !/Exception|java\.|SQL|\/\/|<|\bat\b/.test(payload.msg)) message = payload.msg
+    } catch (error) { /* 非业务错误不展示服务器细节。 */ }
+    const error = new Error(message); error.userFacing = true; throw error
+  })
+}
+
 export { errorMessages }

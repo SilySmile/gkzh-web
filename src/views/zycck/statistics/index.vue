@@ -13,6 +13,8 @@
       <el-form-item><el-button type="primary" icon="el-icon-search" @click="search">查询</el-button><el-button icon="el-icon-refresh" @click="reset">重置</el-button><el-button v-hasPermi="['zycck:statistics:export']" type="success" icon="el-icon-download" :loading="exporting" @click="exportExcel">下载学生数据 Excel</el-button><el-button v-hasPermi="['zycck:statistics:export']" type="success" plain icon="el-icon-download" :loading="summaryExporting" @click="exportSummaryExcel">下载系专业人数 Excel</el-button></el-form-item>
     </el-form>
     <div class="export-tip">参与日期按扫码时间筛选，结束日期包含当天。下载前请选择学校和活动；学生数据 Excel 使用当前所有筛选条件，系专业人数 Excel 使用学校、活动、参与日期和状态，均不受分页影响。</div>
+    <el-button v-hasPermi="['zycck:statistics:export']" type="primary" plain icon="el-icon-document" class="report-button" @click="openAnalysisReport">导出分析报告 Word</el-button>
+    <analysis-report-dialog ref="analysisReport" />
     <el-row :gutter="16" class="summary-row"><el-col :span="6"><el-card shadow="never"><div class="metric-label">扫码参与人数</div><div class="metric-value">{{ enteredCount }}</div></el-card></el-col><el-col :span="6"><el-card shadow="never"><div class="metric-label">完成探索人数</div><div class="metric-value">{{ finishedCount }}</div></el-card></el-col><el-col :span="6"><el-card shadow="never"><div class="metric-label">进行中人数</div><div class="metric-value">{{ inProgressCount }}</div></el-card></el-col><el-col :span="6"><el-card shadow="never"><div class="metric-label">完成率</div><div class="metric-value">{{ completionRate }}</div></el-card></el-col></el-row>
     <el-table v-loading="loading" :data="statistics.records || []" border stripe>
       <el-table-column type="index" :index="rowIndex" label="#" width="60" align="center" />
@@ -86,9 +88,11 @@ import { saveAs } from 'file-saver'
 import { listSchool } from '@/api/school/school'
 import { listDepartment } from '@/api/school/department'
 import { listInstances } from '@/api/activity/week'
+import AnalysisReportDialog from './AnalysisReportDialog.vue'
 
 export default {
   name: 'ZycckStatistics',
+  components: { AnalysisReportDialog },
   data() { return { loading: false, exporting: false, summaryExporting: false, detailLoading: false, detailVisible: false, detailRecord: null, detailChoices: [], detailTab: 'choices', detailRequestId: 0, viewedCareers: [], explorationCareers: [], activityFeedback: null, statistics: {}, schools: [], departments: [], activities: [], query: { pageNum: 1, pageSize: 10, schoolId: null, departmentId: null, studentNo: null, major: null, gender: null, statusFilter: null, instanceId: null, startDate: null, endDate: null } } },
   computed: {
     total() { return Number(this.statistics.total != null ? this.statistics.total : this.enteredCount) },
@@ -100,6 +104,11 @@ export default {
   },
   created() { this.loadOptions(); this.load() },
   methods: {
+    openAnalysisReport() {
+      const { schoolId, instanceId } = this.query
+      if (!schoolId || !instanceId) return this.$modal.msgWarning('请先选择学校和活动，再导出分析报告')
+      this.$refs.analysisReport.open(schoolId, instanceId)
+    },
     rowIndex(index) { return (this.query.pageNum - 1) * this.query.pageSize + index + 1 },
     search() { if (this.invalidDateRange()) return; this.query.pageNum = 1; this.load() },
     invalidDateRange() { if (this.query.startDate && this.query.endDate && this.query.startDate > this.query.endDate) { this.$modal.msgWarning('开始日期不能晚于结束日期'); return true } return false },
@@ -169,6 +178,7 @@ export default {
 
 <style scoped>
 .summary-row { margin-bottom: 18px; }
+.report-button { margin-bottom: 18px; }
 .export-tip { margin-bottom: 16px; color: #909399; font-size: 13px; }
 .metric-label { color: #909399; font-size: 13px; }
 .metric-value { margin-top: 8px; color: #303133; font-size: 26px; font-weight: 600; }

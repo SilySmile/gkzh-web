@@ -10,7 +10,7 @@ const api = vm.runInNewContext(read('src/api/zycck/index.js').replace(/^import.*
 const saved = [], warnings = [], errors = []
 const script = read('src/views/zycck/statistics/index.vue').match(/<script>([\s\S]*?)<\/script>/)[1]
 const page = vm.runInNewContext(script.replace(/^import.*$/gm, '').replace('export default', 'module.exports ='), {
-  module: {}, ...api, saveAs: (...args) => saved.push(args),
+  module: {}, AnalysisReportDialog: {}, ...api, saveAs: (...args) => saved.push(args),
   getStatistics: async params => { statisticsRequest = params; return { data: { total: 0, records: [] } } },
   listDepartment: async () => ({ rows: [
     { departmentId: 11, parentId: 0, title: '信息系' },
